@@ -1,108 +1,132 @@
 /* 
-  استایل‌های اختصاصی داشبورد مدیریت Sing-box
-  تم: Dark Modern RTL
+  استایل‌های اختصاصی «پنل دیزاینو وی پی ان» (Dizyno VPN Panel)
+  تم: Ultra Dark Glassmorphic RTL
 */
 
 @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
 
 :root {
-  --bg-primary: #0b0f19;
-  --bg-card: #151c2c;
-  --bg-card-hover: #1c263c;
-  --border-color: rgba(255, 255, 255, 0.08);
+  --bg-primary: #070a13;
+  --bg-card: rgba(18, 25, 41, 0.85);
+  --bg-card-hover: rgba(28, 38, 60, 0.9);
+  --border-color: rgba(255, 255, 255, 0.1);
   --accent-blue: #3b82f6;
-  --accent-cyan: #06b6d4;
-  --accent-purple: #8b5cf6;
-  --text-main: #f1f5f9;
+  --accent-cyan: #38bdf8;
+  --accent-purple: #818cf8;
+  --accent-emerald: #34d399;
+  --accent-rose: #f43f5e;
+  --text-main: #f8fafc;
   --text-muted: #94a3b8;
 }
 
 body {
   font-family: 'Vazirmatn', sans-serif;
-  background-color: var(--bg-primary);
+  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #070a13 70%);
   color: var(--text-main);
   min-height: 100vh;
   margin: 0;
   padding: 0;
 }
 
-/* صفحه لاگین */
-.login-wrapper {
+/* سفارشی‌سازی اسکرول‌بار */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #090d16;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* صفحه راه‌اندازی اولیه و لاگین */
+.login-wrapper, .setup-wrapper {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top right, #1e1b4b 0%, #0b0f19 50%);
+  background: radial-gradient(circle at top right, #312e81 0%, #070a13 60%);
   padding: 20px;
 }
 
-.login-card {
-  background: rgba(21, 28, 44, 0.95);
-  backdrop-filter: blur(16px);
+.login-card, .setup-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: 24px;
   padding: 40px;
   width: 100%;
-  max-width: 420px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-width: 440px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
 }
 
 .brand-icon {
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
-  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px auto;
-  font-size: 28px;
+  font-size: 30px;
   color: white;
-  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
 }
 
-/* داشبورد */
+/* نوار بالای داشبورد */
 .navbar-custom {
-  background: var(--bg-card);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
-  padding: 15px 30px;
+  padding: 16px 30px;
 }
 
+/* کارت‌های آمار */
 .stat-card {
   background: var(--bg-card);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 24px;
-  transition: all 0.3s ease;
+  border-radius: 20px;
+  padding: 22px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
 }
 
-.icon-blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+.icon-blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-cyan); }
+.icon-green { background: rgba(52, 211, 153, 0.15); color: var(--accent-emerald); }
 .icon-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
-.icon-purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); }
-.icon-green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.icon-purple { background: rgba(129, 140, 248, 0.15); color: var(--accent-purple); }
 
 /* جدول کاربران */
 .table-custom-wrapper {
   background: var(--bg-card);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: 24px;
   overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 .table-custom {
@@ -115,11 +139,11 @@ body {
   border-bottom: 1px solid var(--border-color);
   color: var(--text-muted);
   font-weight: 600;
-  padding: 16px 20px;
+  padding: 18px 24px;
 }
 
 .table-custom td {
-  padding: 16px 20px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
 }
@@ -134,45 +158,82 @@ body {
 
 /* نشانگر وضعیت */
 .badge-status {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 50px;
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
 }
 
-.badge-active { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
-.badge-expired { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.badge-active { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+.badge-expired { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); }
 .badge-disabled { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+/* آی‌پی‌های تمیز */
+.clean-ip-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.clean-ip-card:hover {
+  border-color: var(--accent-cyan);
+  transform: translateY(-2px);
+}
 
 /* مودال‌ها */
 .modal-content-dark {
-  background: var(--bg-card);
+  background: rgba(18, 25, 41, 0.95);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: 24px;
   color: var(--text-main);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
 }
 
 .modal-header-dark {
   border-bottom: 1px solid var(--border-color);
+  padding: 20px 24px;
 }
 
 .modal-footer-dark {
   border-top: 1px solid var(--border-color);
+  padding: 16px 24px;
 }
 
 .form-control-dark {
-  background: #0f172a;
+  background: #090d16;
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 12px 16px;
+  transition: all 0.2s;
 }
 
 .form-control-dark:focus {
-  background: #0f172a;
-  border-color: var(--accent-blue);
+  background: #090d16;
+  border-color: var(--accent-cyan);
   color: var(--text-main);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+/* دکمه‌های آیکون‌دار */
+.btn-action {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.btn-action:hover {
+  transform: scale(1.1);
 }
 
 /* تور آموزشی Intro.js */
@@ -182,32 +243,13 @@ body {
   font-family: 'Vazirmatn', sans-serif !important;
   background-color: #1e293b !important;
   color: #f8fafc !important;
-  border-radius: 16px !important;
+  border-radius: 18px !important;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
 }
 
 .introjs-button {
   font-family: 'Vazirmatn', sans-serif !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   text-shadow: none !important;
 }
 
-.introjs-skipbutton {
-  color: #ef4444 !important;
-}
-
-/* دکمه‌های آیکون‌دار */
-.btn-action {
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  transition: all 0.2s;
-}
-
-.btn-action:hover {
-  transform: scale(1.1);
-}
