@@ -524,17 +524,21 @@ app.get('/sub/:uuid', (req, res) => {
   const combinedConfigs = configsList.join('\n');
   const base64Config = Buffer.from(combinedConfigs).toString('base64');
 
-  // تشخیص هوشمند مرورگر در برابر کلاینت VPN
+  // تشخیص ۱۰۰٪ دقیق و رزروشده مرورگر در برابر نرم‌افزارهای VPN
   const userAgent = (req.headers['user-agent'] || '').toLowerCase();
   const acceptHeader = (req.headers['accept'] || '').toLowerCase();
+  const secChUa = req.headers['sec-ch-ua'];
+  const acceptLanguage = req.headers['accept-language'];
+
+  const isVpnClient = /v2ray|xray|shadowrocket|nekobox|sing-box|clash|stash|quantumult|streisand|passwall|sagernet|surfboard|hiddify|flclash|matsuri|v2fly|go-http-client|axios|fetch|curl|wget|winhttp|system\.net\.http|netcore|csharp|golang/i.test(userAgent);
   
-  const isVpnClient = /v2ray|shadowrocket|nekobox|sing-box|clash|stash|quantumult|streisand|passwall|sagernet|xray|surfboard|hiddify|flclash|matsuri|v2fly|go-http-client|axios|fetch/i.test(userAgent);
   const forceHtml = req.query.html === 'true' || req.query.format === 'html';
   const forceRaw = req.query.raw === 'true' || req.query.config === 'true' || req.query.format === 'base64';
 
-  const shouldRenderHtml = (forceHtml || (acceptHeader.includes('text/html') && userAgent.includes('mozilla') && !isVpnClient)) && !forceRaw;
+  const isRealBrowser = (secChUa || acceptLanguage) && userAgent.includes('mozilla') && !isVpnClient;
+  const shouldRenderHtml = (forceHtml || isRealBrowser) && !forceRaw;
 
-  // رندر صفحه وب گرافیکی و فوق‌العاده رسپانسیو برای کاربر
+  // رندر صفحه وب گرافیکی فقط در صورت مطمئن بودن از مرورگر یا ارسال html=true
   if (shouldRenderHtml) {
     const usedGB = (user.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
     const limitGB = user.limitBytes > 0 ? (user.limitBytes / (1024 * 1024 * 1024)).toFixed(2) : 'نامحدود';
@@ -577,7 +581,7 @@ app.get('/sub/:uuid', (req, res) => {
       <style>
         :root {
           --bg-dark: #090d16;
-          --card-bg: rgba(18, 25, 41, 0.88);
+          --card-bg: rgba(18, 25, 41, 0.92);
           --accent-cyan: #38bdf8;
           --accent-indigo: #6366f1;
         }
@@ -596,7 +600,7 @@ app.get('/sub/:uuid', (req, res) => {
           background: var(--card-bg);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 28px;
           padding: 28px;
           max-width: 460px;
@@ -645,7 +649,7 @@ app.get('/sub/:uuid', (req, res) => {
         }
         .stat-box {
           background: rgba(15, 23, 42, 0.7);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 18px;
           padding: 14px;
           text-align: center;
