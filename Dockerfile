@@ -2,7 +2,7 @@
 FROM node:18-alpine
 
 # نصب ابزارهای دانلود و شبکه
-RUN apk add --no-co-cache wget tar bash ca-certificates
+RUN apk update && apk add --no-cache wget tar bash ca-certificates
 
 # تنظیم پوشه کاری
 WORKDIR /app
@@ -19,13 +19,13 @@ RUN wget https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSI
 COPY package.json package-lock.json* ./
 RUN npm install --production
 
-# ایجاد پوشه ماندگار داده‌ها
+# ایجاد پوشه داده‌ها
 RUN mkdir -p /app/data
 
 # کپی تمامی فایل‌های سورس پروژه
 COPY . .
 
-# تعریف پورت عمومی و داکر والوم (Docker Volume)
+# تعریف پورت عمومی
 EXPOSE 8080
 
 # متغیر محیطی مسیر داده‌ها
