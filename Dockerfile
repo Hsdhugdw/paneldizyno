@@ -28,7 +28,8 @@ COPY . .
 # تعریف پورت عمومی
 EXPOSE 8080
 
-# متغیر محیطی مسیر داده‌ها
+# متغیر محیطی مسیر داده‌ها و پورت
+ENV PORT=8080
 ENV DATA_DIR=/app/data
 ENV SINGBOX_BIN=/app/sing-box
 
