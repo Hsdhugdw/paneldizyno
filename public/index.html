@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>پنل مدیریت Sing-box VPN | نسخه Railway</title>
+  <!-- Bootstrap 5 RTL -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Vazirmatn Font -->
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+  <!-- Intro.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/introjs.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- ==================== 1. بخش ورود (Login Section) ==================== -->
+  <div id="loginSection" class="login-wrapper">
+    <div class="login-card text-center">
+      <div class="brand-icon">
+        <i class="fa-solid fa-bolt"></i>
+      </div>
+      <h3 class="fw-bold mb-1">پنل مدیریت Sing-box</h3>
+      <p class="text-muted small mb-4">ورود به حساب مدیریتی سرور VPN</p>
+      
+      <form id="loginForm">
+        <div class="mb-3 text-start">
+          <label class="form-label small text-muted">نام کاربری</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-user"></i></span>
+            <input type="text" id="loginUsername" class="form-control form-control-dark" placeholder="admin" required>
+          </div>
+        </div>
+        <div class="mb-4 text-start">
+          <label class="form-label small text-muted">کلمه عبور</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-lock"></i></span>
+            <input type="password" id="loginPassword" class="form-control form-control-dark" placeholder="••••••••" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 font-weight-bold">
+          <i class="fa-solid fa-right-to-bracket me-2"></i> ورود به پنل
+        </button>
+      </form>
+      
+      <div class="mt-4 pt-3 border-top border-secondary text-muted small">
+        کلمه عبور پیش‌فرض: <code class="text-info">adminpassword</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 2. بخش داشبورد (Dashboard Section) ==================== -->
+  <div id="dashboardSection" class="d-none">
+    
+    <!-- هدر و نوار ابزار -->
+    <nav class="navbar navbar-custom d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-3">
+        <div class="brand-icon mb-0" style="width: 42px; height: 42px; font-size: 20px;">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div>
+          <h5 class="mb-0 fw-bold text-white">پنل Sing-box VPN</h5>
+          <span class="small text-muted" style="font-size: 0.78rem;">پروتکل VLESS + gRPC (ویژه Railway)</span>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <a href="/guide" id="tourGuideLink" target="_blank" class="btn btn-sm btn-outline-info rounded-3 me-2">
+          <i class="fa-solid fa-book me-1"></i> راهنمای نصب
+        </a>
+        <button class="btn btn-sm btn-outline-light rounded-3" onclick="startOnboardingTour()" title="راهنمای تعاملی">
+          <i class="fa-solid fa-circle-question"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-light rounded-3" data-bs-toggle="modal" data-bs-target="#settingsModal" title="تنظیمات سیستم">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+        <div class="vr mx-2 bg-secondary opacity-50"></div>
+        <span class="small text-muted d-none d-md-inline">ادمین: <strong id="adminNameDisplay" class="text-white">admin</strong></span>
+        <button class="btn btn-sm btn-outline-danger rounded-3 me-2" onclick="logout()" title="خروج">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- محتوای اصلی -->
+    <div class="container-fluid p-4">
+      
+      <!-- کارت‌های آمار -->
+      <div id="tourStats" class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+              <div class="text-muted small mb-1">کل کاربران</div>
+              <h3 id="statTotalUsers" class="fw-bold mb-0 text-white">0</h3>
+            </div>
+            <div class="stat-icon icon-blue">
+              <i class="fa-solid fa-users"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+              <div class="text-muted small mb-1">کاربران فعال</div>
+              <h3 id="statActiveUsers" class="fw-bold mb-0 text-success">0</h3>
+            </div>
+            <div class="stat-icon icon-green">
+              <i class="fa-solid fa-user-check"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+              <div class="text-muted small mb-1">حجم کل مجاز</div>
+              <h3 id="statTotalLimit" class="fw-bold mb-0 text-info">0 GB</h3>
+            </div>
+            <div class="stat-icon icon-cyan">
+              <i class="fa-solid fa-database"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+              <div class="text-muted small mb-1">ترافیک کل مصرفی</div>
+              <h3 id="statTotalUsed" class="fw-bold mb-0 text-warning">0 GB</h3>
+            </div>
+            <div class="stat-icon icon-purple">
+              <i class="fa-solid fa-chart-line"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- جدول مدیریت کاربران -->
+      <div id="tourUsersTable" class="table-custom-wrapper">
+        <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h5 class="fw-bold mb-0 text-white"><i class="fa-solid fa-list me-2 text-primary"></i> لیست کاربران</h5>
+          <button id="tourAddUserBtn" class="btn btn-primary rounded-3 px-3" data-bs-toggle="modal" data-bs-target="#createUserModal">
+            <i class="fa-solid fa-plus me-1"></i> ایجاد کاربر جدید
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-custom align-middle">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>نام کاربر</th>
+                <th>وضعیت</th>
+                <th>حجم مصرفی / کل</th>
+                <th>تاریخ انقضا</th>
+                <th class="text-center">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <!-- کاربران از طریق JavaScript بارگذاری می‌شوند -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== مودال ساخت کاربر جدید ==================== -->
+  <div class="modal fade" id="createUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-content-dark">
+        <div class="modal-header modal-header-dark">
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-plus me-2 text-primary"></i> ساخت کاربر جدید</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="createUserForm">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+              <label class="form-label small text-muted">نام کاربر <span class="text-danger">*</span></label>
+              <input type="text" id="newUserName" class="form-control form-control-dark" placeholder="مثال: علی رضایی" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">حجم مجاز (گیگابایت)</label>
+              <input type="number" id="newUserLimitGB" class="form-control form-control-dark" placeholder="مثال: 50 (0 برای نامحدود)" step="0.5" min="0" value="50">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">مدت اعتبار (روز)</label>
+              <input type="number" id="newUserExpireDays" class="form-control form-control-dark" placeholder="مثال: 30" min="0" value="30">
+            </div>
+          </div>
+          <div class="modal-footer modal-footer-dark">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+            <button type="submit" class="btn btn-primary px-4">ایجاد کاربر</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== مودال ویرایش کاربر ==================== -->
+  <div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-content-dark">
+        <div class="modal-header modal-header-dark">
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-pen me-2 text-warning"></i> ویرایش کاربر</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="editUserForm">
+          <input type="hidden" id="editUserId">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+              <label class="form-label small text-muted">نام کاربر</label>
+              <input type="text" id="editUserName" class="form-control form-control-dark" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">حجم مجاز (گیگابایت)</label>
+              <input type="number" id="editUserLimitGB" class="form-control form-control-dark" step="0.5" min="0">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">تاریخ انقضا (YYYY-MM-DD)</label>
+              <input type="date" id="editUserExpireDate" class="form-control form-control-dark">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">وضعیت کاربر</label>
+              <select id="editUserStatus" class="form-select form-control-dark">
+                <option value="active">فعال</option>
+                <option value="disabled">غیرفعال</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer modal-footer-dark">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+            <button type="submit" class="btn btn-warning px-4">ذخیره تغییرات</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== مودال تنظیمات ادمین ==================== -->
+  <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-content-dark">
+        <div class="modal-header modal-header-dark">
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-sliders me-2 text-info"></i> تنظیمات پنل و حساب ادمین</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="settingsForm">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+              <label class="form-label small text-muted">نام کاربری ادمین جدید</label>
+              <input type="text" id="settingUsername" class="form-control form-control-dark" placeholder="admin">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">کلمه عبور جدید (در صورت عدم تغییر خالی بگذارید)</label>
+              <input type="password" id="settingPassword" class="form-control form-control-dark" placeholder="••••••••">
+            </div>
+            <hr class="border-secondary my-3">
+            <div class="mb-3">
+              <label class="form-label small text-muted">پورت ورودی Sing-box (VLESS Port)</label>
+              <input type="number" id="settingVlessPort" class="form-control form-control-dark" value="8443">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">نام سرویس gRPC (serviceName)</label>
+              <input type="text" id="settingServiceName" class="form-control form-control-dark" value="vless-grpc">
+            </div>
+          </div>
+          <div class="modal-footer modal-footer-dark">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+            <button type="submit" class="btn btn-info text-white px-4">به‌روزرسانی تنظیمات</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- توست اعلان‌ها -->
+  <div id="toastContainer" class="toast-container position-fixed bottom-0 start-0 p-3" style="z-index: 9999;"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

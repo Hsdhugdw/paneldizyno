@@ -1,0 +1,37 @@
+# پایه ایمیج سبک لینوکس آلپاین به همراه Node.js 18
+FROM node:18-alpine
+
+# نصب ابزارهای دانلود و شبکه
+RUN apk add --no-co-cache wget tar bash ca-certificates
+
+# تنظیم پوشه کاری
+WORKDIR /app
+
+# دانلود و نصب آخرین نسخه هسته Sing-box برای معماری linux-amd64
+ARG SINGBOX_VERSION=1.8.10
+RUN wget https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz \
+    && tar -xzf sing-box-${SINGBOX_VERSION}-linux-amd64.tar.gz \
+    && mv sing-box-${SINGBOX_VERSION}-linux-amd64/sing-box /app/sing-box \
+    && chmod +x /app/sing-box \
+    && rm -rf sing-box-${SINGBOX_VERSION}-linux-amd64*
+
+# کپی فایل وابستگی‌ها و نصب ماژول‌های Node.js
+COPY package.json package-lock.json* ./
+RUN npm install --production
+
+# ایجاد پوشه ماندگار داده‌ها
+RUN mkdir -p /app/data
+
+# کپی تمامی فایل‌های سورس پروژه
+COPY . .
+
+# تعریف پورت عمومی و داکر والوم (Docker Volume)
+EXPOSE 8080
+VOLUME ["/app/data"]
+
+# متغیر محیطی مسیر داده‌ها
+ENV DATA_DIR=/app/data
+ENV SINGBOX_BIN=/app/sing-box
+
+# فرمان اجرای سرور
+CMD ["npm", "start"]
