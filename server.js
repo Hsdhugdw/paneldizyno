@@ -56,15 +56,14 @@ function saveSettings(newSettings) {
 // دریافت یا ایجاد فایل کاربران
 function getUsers() {
   if (!fs.existsSync(USERS_FILE)) {
-    // نمونه اولیه کاربر جهت شروع
     const initialUser = [
       {
         id: uuidv4(),
         name: 'کاربر نمونه',
         uuid: uuidv4(),
-        limitBytes: 50 * 1024 * 1024 * 1024, // 50 گیگابایت
-        usedBytes: 1.5 * 1024 * 1024 * 1024, // 1.5 گیگابایت مصرفی نمونه
-        expireDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 روز دیگر
+        limitBytes: 50 * 1024 * 1024 * 1024,
+        usedBytes: 1.5 * 1024 * 1024 * 1024,
+        expireDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'active',
         createdAt: new Date().toISOString()
       }
@@ -92,7 +91,6 @@ function rebuildSingboxConfig() {
   const settings = getSettings();
   const users = getUsers();
 
-  // فیلتر کاربران فعال که انقضا نشده و حجمشان تمام نشده است
   const today = new Date().toISOString().split('T')[0];
   const activeUsers = users.filter(u => {
     if (u.status !== 'active') return false;
@@ -139,7 +137,6 @@ function rebuildSingboxConfig() {
 }
 
 function restartSingboxProcess() {
-  // اگر سنگ‌باکس در حال اجرا باشد، ری‌استارت می‌شود
   if (singboxProcess) {
     try {
       singboxProcess.kill('SIGKILL');
@@ -147,7 +144,6 @@ function restartSingboxProcess() {
     singboxProcess = null;
   }
 
-  // بررسی وجود فایل اجرایی Sing-box
   const singboxBin = process.env.SINGBOX_BIN || '/app/sing-box';
   if (fs.existsSync(singboxBin)) {
     console.log('در حال راه‌اندازی هسته Sing-box...');
@@ -163,7 +159,7 @@ function restartSingboxProcess() {
       console.log(`پروسه Sing-box با کد ${code} متوقف شد.`);
     });
   } else {
-    console.log('فایل اجرایی Sing-box یافت نشد (محیط توسعه محلی). کانفیگ جدید ذخیره گردید.');
+    console.log('فایل اجرایی Sing-box یافت نشد.');
   }
 }
 
@@ -173,10 +169,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors());
 
-// فایل‌های استاتیک برای فرانت‌اند
 app.use(express.static(path.join(__dirname, 'public')));
 
-// میدل‌ور احراز هویت با JWT
 function authMiddleware(req, res, next) {
   const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -195,7 +189,6 @@ function authMiddleware(req, res, next) {
 
 // ---- API های سیستم ----
 
-// ورود به پنل
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const settings = getSettings();
@@ -209,19 +202,16 @@ app.post('/api/login', (req, res) => {
   return res.status(400).json({ success: false, message: 'نام کاربری یا کلمه عبور اشتباه است.' });
 });
 
-// خروج از حساب
 app.post('/api/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ success: true, message: 'از سیستم خارج شدید.' });
 });
 
-// بررسی وضعیت ورود
 app.get('/api/check-auth', authMiddleware, (req, res) => {
   const settings = getSettings();
   res.json({ success: true, username: settings.username });
 });
 
-// تغییر کلمه عبور و تنظیمات ادمین
 app.post('/api/change-password', authMiddleware, (req, res) => {
   const { newUsername, newPassword, vlessPort, serviceName } = req.body;
   const settings = getSettings();
@@ -237,7 +227,6 @@ app.post('/api/change-password', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'تنظیمات و اطلاعات حساب ادمین با موفقیت به‌روزرسانی شد.' });
 });
 
-// آمار کلی داشبورد
 app.get('/api/stats', authMiddleware, (req, res) => {
   const users = getUsers();
   const today = new Date().toISOString().split('T')[0];
@@ -258,13 +247,11 @@ app.get('/api/stats', authMiddleware, (req, res) => {
   });
 });
 
-// دریافت لیست کاربران
 app.get('/api/users', authMiddleware, (req, res) => {
   const users = getUsers();
   res.json({ success: true, users });
 });
 
-// ساخت کاربر جدید
 app.post('/api/users', authMiddleware, (req, res) => {
   const { name, limitGB, expireDays } = req.body;
 
@@ -299,7 +286,6 @@ app.post('/api/users', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'کاربر جدید با موفقیت ایجاد شد.', user: newUser });
 });
 
-// ویرایش کاربر
 app.put('/api/users/:id', authMiddleware, (req, res) => {
   const { id } = req.params;
   const { name, limitGB, expireDate, status } = req.body;
@@ -319,7 +305,6 @@ app.put('/api/users/:id', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'اطلاعات کاربر با موفقیت ویرایش شد.', user: users[userIndex] });
 });
 
-// صفر کردن حجم مصرفی کاربر
 app.post('/api/users/:id/reset-traffic', authMiddleware, (req, res) => {
   const { id } = req.params;
   const users = getUsers();
@@ -334,7 +319,6 @@ app.post('/api/users/:id/reset-traffic', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'ترافیک مصرفی کاربر صفر شد.' });
 });
 
-// حذف کاربر
 app.delete('/api/users/:id', authMiddleware, (req, res) => {
   const { id } = req.params;
   let users = getUsers();
@@ -365,24 +349,14 @@ app.get('/sub/:uuid', (req, res) => {
   const host = req.get('host') || '127.0.0.1';
   const domainOnly = host.split(':')[0];
 
-  // ساخت کانفیگ VLESS gRPC
-  const vlessConfig = `vless://${user.uuid}@${domainOnly}:${settings.vlessPort}?type=grpc&serviceName=${encodeURIComponent(settings.serviceName)}&security=none#${encodeURIComponent(user.name + ' | Singbox-gRPC')}`;
+  // ساخت کانفیگ‌های بهینه‌شده VLESS gRPC (هم پورت 443 TLS و هم پورت مستقیم)
+  const vlessTls = `vless://${user.uuid}@${domainOnly}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=${encodeURIComponent(settings.serviceName)}&fp=chrome&sni=${domainOnly}#${encodeURIComponent(user.name + ' | gRPC-TLS-443')}`;
+  const vlessDirect = `vless://${user.uuid}@${domainOnly}:${settings.vlessPort}?type=grpc&serviceName=${encodeURIComponent(settings.serviceName)}&security=none#${encodeURIComponent(user.name + ' | gRPC-Direct')}`;
+  const combinedConfigs = `${vlessTls}\n${vlessDirect}`;
+  const base64Config = Buffer.from(combinedConfigs).toString('base64');
 
-  const acceptHeader = req.headers['accept'] || '';
-  const userAgent = (req.headers['user-agent'] || '').toLowerCase();
-
-  // تشخیص کلاینت اتصال (v2rayNG, NekoBox, Sing-box, etc.)
-  const isV2rayClient = userAgent.includes('v2ray') || 
-                        userAgent.includes('neko') || 
-                        userAgent.includes('sing-box') || 
-                        userAgent.includes('shadowrocket') || 
-                        userAgent.includes('clash') ||
-                        userAgent.includes('quantumult') ||
-                        userAgent.includes('stash') ||
-                        req.query.format === 'base64';
-
-  if (!isV2rayClient && acceptHeader.includes('text/html')) {
-    // محاسبه آمار حجم و روز برای صفحه وب زیبا
+  // اگر پارامتر html=true ارسال شده باشد، صفحه وب رندر می‌شود
+  if (req.query.html === 'true') {
     const usedGB = (user.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
     const limitGB = user.limitBytes > 0 ? (user.limitBytes / (1024 * 1024 * 1024)).toFixed(2) : 'نامحدود';
     let percentUsed = 0;
@@ -411,7 +385,6 @@ app.get('/sub/:uuid', (req, res) => {
 
     const currentSubUrl = `${req.protocol}://${host}/sub/${user.uuid}`;
 
-    // رندر صفحه وب زیبا برای کاربر
     const htmlPage = `
     <!DOCTYPE html>
     <html lang="fa" dir="rtl">
@@ -512,7 +485,7 @@ app.get('/sub/:uuid', (req, res) => {
         </div>
 
         <div class="d-grid gap-2">
-          <button class="btn btn-primary copy-btn" onclick="copyText('${vlessConfig}', 'کانفیگ VLESS با موفقیت کپی شد!')">
+          <button class="btn btn-primary copy-btn" onclick="copyText('${vlessTls}', 'کانفیگ VLESS با موفقیت کپی شد!')">
             <i class="fa-solid fa-copy me-2"></i> کپی لینک کانفیگ VLESS
           </button>
           <button class="btn btn-outline-light copy-btn" onclick="copyText('${currentSubUrl}', 'لینک اشتراک کپی شد!')">
@@ -539,8 +512,7 @@ app.get('/sub/:uuid', (req, res) => {
     return res.send(htmlPage);
   }
 
-  // در غیر این صورت (برای برنامه v2rayNG و کلاینت‌ها)، کانفیگ Base64 تحویل داده می‌شود
-  const base64Config = Buffer.from(vlessConfig).toString('base64');
+  // خروجی استاندارد Base64 برای تمام کلاینت‌های v2ray
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   return res.send(base64Config);
 });
