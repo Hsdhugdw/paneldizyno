@@ -6,6 +6,7 @@ let globalUsersList = [];
 let globalSettings = {};
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initApp();
 
   // فرم راه‌اندازی اولیه
@@ -541,7 +542,32 @@ function copyToClipboard(text, successMsg) {
 }
 
 function openUserSubPage(url) {
-  window.open(url, '_blank');
+  window.open(url + '?html=true', '_blank');
+}
+
+// مدیریت تم روشن و تیره (Light / Dark Mode)
+function initTheme() {
+  const savedTheme = localStorage.getItem('dizyno_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('dizyno_theme', newTheme);
+  updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('themeToggleIcon');
+  if (!icon) return;
+  if (theme === 'light') {
+    icon.className = 'fa-solid fa-moon';
+  } else {
+    icon.className = 'fa-solid fa-sun';
+  }
 }
 
 // تور آموزش تعاملی (Intro.js)
