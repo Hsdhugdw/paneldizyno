@@ -11,7 +11,9 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
-const { spawn, exec } = require('child_process');
+const { spawn } = require('child_process');
+const http = require('http');
+const net = require('net');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -61,8 +63,8 @@ function getUsers() {
         id: uuidv4(),
         name: 'کاربر نمونه',
         uuid: uuidv4(),
-        limitBytes: 50 * 1024 * 1024 * 1024,
-        usedBytes: 1.5 * 1024 * 1024 * 1024,
+        limitBytes: 50 * 1024 * 1024 * 1024, // 50 گیگابایت
+        usedBytes: 1.5 * 1024 * 1024 * 1024, // 1.5 گیگابایت
         expireDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'active',
         createdAt: new Date().toISOString()
@@ -99,6 +101,8 @@ function rebuildSingboxConfig() {
     return true;
   });
 
+  const serviceName = settings.serviceName || "vless-grpc";
+
   const singboxConfig = {
     log: {
       level: "info",
@@ -107,16 +111,30 @@ function rebuildSingboxConfig() {
     inbounds: [
       {
         type: "vless",
-        tag: "vless-inbound",
-        listen: "::",
-        listen_port: parseInt(settings.vlessPort) || 8443,
+        tag: "vless-ws-inbound",
+        listen: "127.0.0.1",
+        listen_port: 2083,
+        users: activeUsers.map(u => ({
+          name: u.name,
+          uuid: u.uuid
+        })),
+        transport: {
+          type: "ws",
+          path: "/vless"
+        }
+      },
+      {
+        type: "vless",
+        tag: "vless-grpc-inbound",
+        listen: "127.0.0.1",
+        listen_port: 2084,
         users: activeUsers.map(u => ({
           name: u.name,
           uuid: u.uuid
         })),
         transport: {
           type: "grpc",
-          service_name: settings.serviceName || "vless-grpc"
+          service_name: serviceName
         }
       }
     ],
@@ -159,18 +177,49 @@ function restartSingboxProcess() {
       console.log(`پروسه Sing-box با کد ${code} متوقف شد.`);
     });
   } else {
-    console.log('فایل اجرایی Sing-box یافت نشد.');
+    console.log('فایل اجرایی Sing-box یافت نشد (محیط توسعه محلی). کانفیگ جدید ذخیره گردید.');
   }
 }
 
-// میدل‌ورها
+// میدل‌ورهای پایه Express
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors());
 
+// میدل‌ور پراکسی برای درخوایت‌های gRPC
+app.use((req, res, next) => {
+  const settings = getSettings();
+  const isGrpc = (req.headers['content-type'] && req.headers['content-type'].includes('application/grpc')) || 
+                 req.url.includes('vless-grpc') || 
+                 req.url.includes(settings.serviceName || 'vless-grpc');
+
+  if (isGrpc) {
+    const connector = http.request({
+      hostname: '127.0.0.1',
+      port: 2084,
+      path: req.url,
+      method: req.method,
+      headers: req.headers
+    }, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+
+    connector.on('error', () => {
+      if (!res.headersSent) res.status(502).end();
+    });
+
+    req.pipe(connector);
+  } else {
+    next();
+  }
+});
+
+// فایل‌های استاتیک برای فرانت‌اند
 app.use(express.static(path.join(__dirname, 'public')));
 
+// میدل‌ور احراز هویت با JWT
 function authMiddleware(req, res, next) {
   const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -189,6 +238,7 @@ function authMiddleware(req, res, next) {
 
 // ---- API های سیستم ----
 
+// ورود به پنل
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const settings = getSettings();
@@ -202,16 +252,19 @@ app.post('/api/login', (req, res) => {
   return res.status(400).json({ success: false, message: 'نام کاربری یا کلمه عبور اشتباه است.' });
 });
 
+// خروج از حساب
 app.post('/api/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ success: true, message: 'از سیستم خارج شدید.' });
 });
 
+// بررسی وضعیت ورود
 app.get('/api/check-auth', authMiddleware, (req, res) => {
   const settings = getSettings();
   res.json({ success: true, username: settings.username });
 });
 
+// تغییر کلمه عبور و تنظیمات ادمین
 app.post('/api/change-password', authMiddleware, (req, res) => {
   const { newUsername, newPassword, vlessPort, serviceName } = req.body;
   const settings = getSettings();
@@ -227,6 +280,7 @@ app.post('/api/change-password', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'تنظیمات و اطلاعات حساب ادمین با موفقیت به‌روزرسانی شد.' });
 });
 
+// آمار کلی داشبورد
 app.get('/api/stats', authMiddleware, (req, res) => {
   const users = getUsers();
   const today = new Date().toISOString().split('T')[0];
@@ -247,11 +301,13 @@ app.get('/api/stats', authMiddleware, (req, res) => {
   });
 });
 
+// دریافت لیست کاربران
 app.get('/api/users', authMiddleware, (req, res) => {
   const users = getUsers();
   res.json({ success: true, users });
 });
 
+// ساخت کاربر جدید
 app.post('/api/users', authMiddleware, (req, res) => {
   const { name, limitGB, expireDays } = req.body;
 
@@ -286,6 +342,7 @@ app.post('/api/users', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'کاربر جدید با موفقیت ایجاد شد.', user: newUser });
 });
 
+// ویرایش کاربر
 app.put('/api/users/:id', authMiddleware, (req, res) => {
   const { id } = req.params;
   const { name, limitGB, expireDate, status } = req.body;
@@ -305,6 +362,7 @@ app.put('/api/users/:id', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'اطلاعات کاربر با موفقیت ویرایش شد.', user: users[userIndex] });
 });
 
+// صفر کردن حجم مصرفی کاربر
 app.post('/api/users/:id/reset-traffic', authMiddleware, (req, res) => {
   const { id } = req.params;
   const users = getUsers();
@@ -319,6 +377,7 @@ app.post('/api/users/:id/reset-traffic', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'ترافیک مصرفی کاربر صفر شد.' });
 });
 
+// حذف کاربر
 app.delete('/api/users/:id', authMiddleware, (req, res) => {
   const { id } = req.params;
   let users = getUsers();
@@ -349,14 +408,24 @@ app.get('/sub/:uuid', (req, res) => {
   const host = req.get('host') || '127.0.0.1';
   const domainOnly = host.split(':')[0];
 
-  // ساخت کانفیگ‌های بهینه‌شده VLESS gRPC (هم پورت 443 TLS و هم پورت مستقیم)
-  const vlessTls = `vless://${user.uuid}@${domainOnly}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=${encodeURIComponent(settings.serviceName)}&fp=chrome&sni=${domainOnly}#${encodeURIComponent(user.name + ' | gRPC-TLS-443')}`;
-  const vlessDirect = `vless://${user.uuid}@${domainOnly}:${settings.vlessPort}?type=grpc&serviceName=${encodeURIComponent(settings.serviceName)}&security=none#${encodeURIComponent(user.name + ' | gRPC-Direct')}`;
-  const combinedConfigs = `${vlessTls}\n${vlessDirect}`;
+  // ساخت کانفیگ‌های بهینه‌شده VLESS با TLS روی پورت 443
+  const vlessWs = `vless://${user.uuid}@${domainOnly}:443?type=ws&path=%2Fvless&security=tls&encryption=none&fp=chrome&sni=${domainOnly}#${encodeURIComponent(user.name + ' | VLESS-WS')}`;
+  const vlessGrpc = `vless://${user.uuid}@${domainOnly}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=${encodeURIComponent(settings.serviceName || 'vless-grpc')}&fp=chrome&sni=${domainOnly}#${encodeURIComponent(user.name + ' | VLESS-gRPC')}`;
+  const combinedConfigs = `${vlessWs}\n${vlessGrpc}`;
   const base64Config = Buffer.from(combinedConfigs).toString('base64');
 
-  // اگر پارامتر html=true ارسال شده باشد، صفحه وب رندر می‌شود
-  if (req.query.html === 'true') {
+  // تشخیص هوشمند مرورگر در برابر کلاینت VPN
+  const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+  const acceptHeader = (req.headers['accept'] || '').toLowerCase();
+  
+  const isVpnClient = /v2ray|shadowrocket|nekobox|sing-box|clash|stash|quantumult|streisand|passwall|sagernet|xray|surfboard|hiddify|flclash|matsuri|v2fly|go-http-client|axios|fetch/i.test(userAgent);
+  const forceHtml = req.query.html === 'true' || req.query.format === 'html';
+  const forceRaw = req.query.raw === 'true' || req.query.config === 'true' || req.query.format === 'base64';
+
+  const shouldRenderHtml = (forceHtml || (acceptHeader.includes('text/html') && userAgent.includes('mozilla') && !isVpnClient)) && !forceRaw;
+
+  // اگر مرورگر باشد، صفحه وب زیبا رندر می‌شود
+  if (shouldRenderHtml) {
     const usedGB = (user.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
     const limitGB = user.limitBytes > 0 ? (user.limitBytes / (1024 * 1024 * 1024)).toFixed(2) : 'نامحدود';
     let percentUsed = 0;
@@ -398,7 +467,7 @@ app.get('/sub/:uuid', (req, res) => {
       <style>
         body {
           font-family: 'Vazirmatn', sans-serif;
-          background: #0f172a;
+          background: #090d16;
           color: #f8fafc;
           min-height: 100vh;
           display: flex;
@@ -407,14 +476,14 @@ app.get('/sub/:uuid', (req, res) => {
           padding: 20px;
         }
         .user-card {
-          background: rgba(30, 41, 59, 0.9);
-          backdrop-filter: blur(12px);
+          background: rgba(22, 30, 46, 0.85);
+          backdrop-filter: blur(16px);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 24px;
-          padding: 30px;
+          padding: 32px;
           max-width: 480px;
           width: 100%;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         .status-badge {
           padding: 6px 16px;
@@ -425,7 +494,7 @@ app.get('/sub/:uuid', (req, res) => {
         .progress-bar-custom {
           height: 12px;
           border-radius: 6px;
-          background: #334155;
+          background: #1e293b;
           overflow: hidden;
         }
         .progress-fill {
@@ -436,14 +505,20 @@ app.get('/sub/:uuid', (req, res) => {
         .progress-fill.warning {
           background: linear-gradient(90deg, #f59e0b, #ef4444);
         }
-        .copy-btn {
+        .action-btn {
           border-radius: 12px;
           padding: 12px;
           font-weight: 600;
-          transition: all 0.3s;
+          transition: all 0.2s ease;
         }
-        .copy-btn:hover {
+        .action-btn:hover {
           transform: translateY(-2px);
+        }
+        .qr-container {
+          background: #ffffff;
+          padding: 12px;
+          border-radius: 16px;
+          display: inline-block;
         }
       </style>
     </head>
@@ -451,8 +526,8 @@ app.get('/sub/:uuid', (req, res) => {
       <div class="user-card">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <h4 class="mb-1 text-white font-weight-bold">${user.name}</h4>
-            <span class="text-muted small"><i class="fa-solid me-1"></i> Sing-box VLESS gRPC</span>
+            <h4 class="mb-1 text-white fw-bold">${user.name}</h4>
+            <span class="text-muted small"><i class="fa-solid fa-shield-halved me-1 text-info"></i> Sing-box VLESS</span>
           </div>
           <span class="status-badge ${isExpired ? 'bg-danger text-white' : 'bg-success text-white'}">
             ${isExpired ? 'غیرفعال / منقضی' : 'فعال و متصل'}
@@ -460,9 +535,9 @@ app.get('/sub/:uuid', (req, res) => {
         </div>
 
         <div class="mb-4">
-          <div class="d-flex justify-content-between mb-2 small text-slate-300">
-            <span>حجم مصرفی: <strong>${usedGB} GB</strong></span>
-            <span>حجم کل: <strong>${limitGB} ${limitGB !== 'نامحدود' ? 'GB' : ''}</strong></span>
+          <div class="d-flex justify-content-between mb-2 small">
+            <span class="text-slate-300">حجم مصرفی: <strong class="text-white">${usedGB} GB</strong></span>
+            <span class="text-slate-300">حجم کل: <strong class="text-white">${limitGB} ${limitGB !== 'نامحدود' ? 'GB' : ''}</strong></span>
           </div>
           <div class="progress-bar-custom">
             <div class="progress-fill ${percentUsed > 85 ? 'warning' : ''}" style="width: ${percentUsed}%"></div>
@@ -471,29 +546,36 @@ app.get('/sub/:uuid', (req, res) => {
 
         <div class="row g-3 mb-4 text-center">
           <div class="col-6">
-            <div class="p-3 rounded-4 bg-slate-800 border border-slate-700" style="background: rgba(15, 23, 42, 0.6)">
+            <div class="p-3 rounded-4" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.05);">
               <div class="text-muted small mb-1">اعتبار زمانی</div>
               <div class="fw-bold text-info">${daysRemainingText}</div>
             </div>
           </div>
           <div class="col-6">
-            <div class="p-3 rounded-4 bg-slate-800 border border-slate-700" style="background: rgba(15, 23, 42, 0.6)">
+            <div class="p-3 rounded-4" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.05);">
               <div class="text-muted small mb-1">درصد مصرف</div>
               <div class="fw-bold text-warning">${user.limitBytes > 0 ? percentUsed + '%' : '0%'}</div>
             </div>
           </div>
         </div>
 
-        <div class="d-grid gap-2">
-          <button class="btn btn-primary copy-btn" onclick="copyText('${vlessTls}', 'کانفیگ VLESS با موفقیت کپی شد!')">
-            <i class="fa-solid fa-copy me-2"></i> کپی لینک کانفیگ VLESS
-          </button>
-          <button class="btn btn-outline-light copy-btn" onclick="copyText('${currentSubUrl}', 'لینک اشتراک کپی شد!')">
+        <div class="text-center mb-4">
+          <div class="qr-container shadow-sm mb-2">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(currentSubUrl)}" alt="QR Code Subscription" width="160" height="160">
+          </div>
+          <div class="text-muted small" style="font-size: 0.8rem;">اسکن بارکد جهت وارد کردن مستقیم به نرم‌افزار</div>
+        </div>
+
+        <div class="d-grid gap-2 mb-3">
+          <button class="btn btn-primary action-btn" onclick="copyText('${currentSubUrl}', 'لینک اشتراک با موفقیت کپی شد!')">
             <i class="fa-solid fa-link me-2"></i> کپی لینک ساب (Subscription)
+          </button>
+          <button class="btn btn-outline-light action-btn" onclick="copyText(\`${combinedConfigs}\`, 'کانفیگ‌های VLESS با موفقیت کپی شدند!')">
+            <i class="fa-solid fa-copy me-2"></i> کپی مستقیم کانفیگ‌ها
           </button>
         </div>
 
-        <div id="toast" class="alert alert-success text-center mt-3 d-none p-2 small"></div>
+        <div id="toast" class="alert alert-success text-center d-none p-2 small rounded-3"></div>
       </div>
 
       <script>
@@ -503,6 +585,8 @@ app.get('/sub/:uuid', (req, res) => {
             toast.innerText = msg;
             toast.classList.remove('d-none');
             setTimeout(() => toast.classList.add('d-none'), 3000);
+          }).catch(() => {
+            alert('خطا در کپی. متن: ' + text);
           });
         }
       </script>
@@ -512,7 +596,11 @@ app.get('/sub/:uuid', (req, res) => {
     return res.send(htmlPage);
   }
 
-  // خروجی استاندارد Base64 برای تمام کلاینت‌های v2ray
+  // خروجی استاندارد Base64 برای کلاینت‌های v2ray و هدرهای Subscription-Userinfo
+  const expireTimestamp = user.expireDate ? Math.floor(new Date(user.expireDate).getTime() / 1000) : 0;
+  res.setHeader('Subscription-Userinfo', `upload=0; download=${user.usedBytes}; total=${user.limitBytes || 0}; expire=${expireTimestamp}`);
+  res.setHeader('profile-title', `base64:${Buffer.from(user.name).toString('base64')}`);
+  res.setHeader('profile-update-interval', '24');
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   return res.send(base64Config);
 });
@@ -522,13 +610,50 @@ app.get('/guide', (req, res) => {
   res.sendFile(path.join(__dirname, 'guide.html'));
 });
 
-// راه اندازی سرور
+// ایجاد سرور HTTP و مدیریت ارتقا (Upgrade) به WebSocket
+const server = http.createServer(app);
+
+server.on('upgrade', (req, socket, head) => {
+  const url = req.url || '';
+  const isWs = url.startsWith('/vless') || url.startsWith('/ws') || req.headers['sec-websocket-protocol'] === 'vless' || req.headers['upgrade'] === 'websocket';
+
+  if (isWs) {
+    const targetSocket = net.connect({ port: 2083, host: '127.0.0.1' }, () => {
+      let rawRequest = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        rawRequest += `${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}\r\n`;
+      }
+      rawRequest += '\r\n';
+
+      targetSocket.write(rawRequest);
+      if (head && head.length > 0) {
+        targetSocket.write(head);
+      }
+
+      socket.pipe(targetSocket);
+      targetSocket.pipe(socket);
+    });
+
+    targetSocket.on('error', () => {
+      socket.destroy();
+    });
+
+    socket.on('error', () => {
+      targetSocket.destroy();
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+// راه اندازی Sing-box و اجرای سرور
 rebuildSingboxConfig();
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
   console.log(`🚀 پنل مدیریت VPN با هسته Sing-box اجرا شد.`);
   console.log(`🌐 پورت سرور: ${PORT}`);
   console.log(`📁 مسیر ذخیره‌سازی داده‌ها: ${DATA_DIR}`);
   console.log(`====================================================`);
 });
+
