@@ -2,8 +2,8 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>پنل مدیریت Sing-box VPN | نسخه Railway</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>پنل دیزاینو وی پی ان | Dizyno VPN Panel</title>
   <!-- Bootstrap 5 RTL -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
   <!-- FontAwesome 6 -->
@@ -17,13 +17,51 @@
 </head>
 <body>
 
-  <!-- ==================== 1. بخش ورود (Login Section) ==================== -->
-  <div id="loginSection" class="login-wrapper">
+  <!-- ==================== 1. بخش راه‌اندازی اولیه (Initial Setup Section) ==================== -->
+  <div id="setupSection" class="setup-wrapper d-none">
+    <div class="setup-card text-center">
+      <div class="brand-icon">
+        <i class="fa-solid fa-bolt"></i>
+      </div>
+      <h3 class="fw-bold mb-1 text-white">خوش آمدید به دیزاینو وی پی ان</h3>
+      <p class="text-muted small mb-4">لطفاً برای اولین بار حساب مدیریتی سرور را راه‌اندازی کنید</p>
+      
+      <form id="setupForm">
+        <div class="mb-3 text-start">
+          <label class="form-label small text-muted">نام کاربری ادمین <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-user"></i></span>
+            <input type="text" id="setupUsername" class="form-control form-control-dark" placeholder="مثال: admin" required>
+          </div>
+        </div>
+        <div class="mb-4 text-start">
+          <label class="form-label small text-muted">کلمه عبور ادمین <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-lock"></i></span>
+            <input type="password" id="setupPassword" class="form-control form-control-dark" placeholder="کلمه عبور قوی وارد کنید" required>
+          </div>
+        </div>
+        <div class="mb-4 text-start">
+          <label class="form-label small text-muted">آی‌پی یا دامنه تمیز (اختیاری)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-network-wired"></i></span>
+            <input type="text" id="setupCleanIp" class="form-control form-control-dark" placeholder="مثال: 162.159.192.1">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-3 rounded-3 fw-bold">
+          <i class="fa-solid fa-check-circle me-2"></i> راه‌اندازی و ورود به پنل
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 2. بخش ورود (Login Section) ==================== -->
+  <div id="loginSection" class="login-wrapper d-none">
     <div class="login-card text-center">
       <div class="brand-icon">
         <i class="fa-solid fa-bolt"></i>
       </div>
-      <h3 class="fw-bold mb-1">پنل مدیریت Sing-box</h3>
+      <h3 class="fw-bold mb-1 text-white">پنل دیزاینو وی پی ان</h3>
       <p class="text-muted small mb-4">ورود به حساب مدیریتی سرور VPN</p>
       
       <form id="loginForm">
@@ -31,7 +69,7 @@
           <label class="form-label small text-muted">نام کاربری</label>
           <div class="input-group">
             <span class="input-group-text bg-dark border-secondary text-muted"><i class="fa-solid fa-user"></i></span>
-            <input type="text" id="loginUsername" class="form-control form-control-dark" placeholder="admin" required>
+            <input type="text" id="loginUsername" class="form-control form-control-dark" placeholder="نام کاربری" required>
           </div>
         </div>
         <div class="mb-4 text-start">
@@ -41,45 +79,44 @@
             <input type="password" id="loginPassword" class="form-control form-control-dark" placeholder="••••••••" required>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 font-weight-bold">
-          <i class="fa-solid fa-right-to-bracket me-2"></i> ورود به پنل
+        <button type="submit" class="btn btn-primary w-100 py-3 rounded-3 fw-bold">
+          <i class="fa-solid fa-right-to-bracket me-2"></i> ورود به سیستم
         </button>
       </form>
-      
-      <div class="mt-4 pt-3 border-top border-secondary text-muted small">
-        کلمه عبور پیش‌فرض: <code class="text-info">adminpassword</code>
-      </div>
     </div>
   </div>
 
-  <!-- ==================== 2. بخش داشبورد (Dashboard Section) ==================== -->
+  <!-- ==================== 3. بخش داشبورد (Dashboard Section) ==================== -->
   <div id="dashboardSection" class="d-none">
     
     <!-- هدر و نوار ابزار -->
-    <nav class="navbar navbar-custom d-flex justify-content-between align-items-center">
+    <nav class="navbar navbar-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
       <div class="d-flex align-items-center gap-3">
-        <div class="brand-icon mb-0" style="width: 42px; height: 42px; font-size: 20px;">
+        <div class="brand-icon mb-0" style="width: 44px; height: 44px; font-size: 22px;">
           <i class="fa-solid fa-bolt"></i>
         </div>
         <div>
-          <h5 class="mb-0 fw-bold text-white">پنل Sing-box VPN</h5>
-          <span class="small text-muted" style="font-size: 0.78rem;">پروتکل VLESS + gRPC (ویژه Railway)</span>
+          <h5 class="mb-0 fw-bold text-white">پنل دیزاینو وی پی ان</h5>
+          <span class="small text-muted" style="font-size: 0.78rem;">هسته Sing-box VLESS/Trojan (مبتنی بر Railway)</span>
         </div>
       </div>
 
-      <div class="d-flex align-items-center gap-2">
-        <a href="/guide" id="tourGuideLink" target="_blank" class="btn btn-sm btn-outline-info rounded-3 me-2">
-          <i class="fa-solid fa-book me-1"></i> راهنمای نصب
-        </a>
-        <button class="btn btn-sm btn-outline-light rounded-3" onclick="startOnboardingTour()" title="راهنمای تعاملی">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="btn btn-sm btn-outline-info rounded-3" data-bs-toggle="modal" data-bs-target="#cleanIpModal">
+          <i class="fa-solid fa-network-wired me-1"></i> اسکنر آی‌پی تمیز
+        </button>
+        <button class="btn btn-sm btn-outline-primary rounded-3" data-bs-toggle="modal" data-bs-target="#telegramModal">
+          <i class="fa-brands fa-telegram me-1"></i> ربات تلگرام
+        </button>
+        <button class="btn btn-sm btn-outline-light rounded-3" onclick="startOnboardingTour()" title="راهنمای پنل">
           <i class="fa-solid fa-circle-question"></i>
         </button>
         <button class="btn btn-sm btn-outline-light rounded-3" data-bs-toggle="modal" data-bs-target="#settingsModal" title="تنظیمات سیستم">
           <i class="fa-solid fa-gear"></i>
         </button>
-        <div class="vr mx-2 bg-secondary opacity-50"></div>
+        <div class="vr mx-1 bg-secondary opacity-50"></div>
         <span class="small text-muted d-none d-md-inline">ادمین: <strong id="adminNameDisplay" class="text-white">admin</strong></span>
-        <button class="btn btn-sm btn-outline-danger rounded-3 me-2" onclick="logout()" title="خروج">
+        <button class="btn btn-sm btn-outline-danger rounded-3" onclick="logout()" title="خروج">
           <i class="fa-solid fa-power-off"></i>
         </button>
       </div>
@@ -117,7 +154,7 @@
         <div class="col-12 col-sm-6 col-xl-3">
           <div class="stat-card d-flex align-items-center justify-content-between">
             <div>
-              <div class="text-muted small mb-1">حجم کل مجاز</div>
+              <div class="text-muted small mb-1">حجم کل تخصیصی</div>
               <h3 id="statTotalLimit" class="fw-bold mb-0 text-info">0 GB</h3>
             </div>
             <div class="stat-icon icon-cyan">
@@ -141,10 +178,20 @@
 
       <!-- جدول مدیریت کاربران -->
       <div id="tourUsersTable" class="table-custom-wrapper">
-        <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <h5 class="fw-bold mb-0 text-white"><i class="fa-solid fa-list me-2 text-primary"></i> لیست کاربران</h5>
+        <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center flex-wrap gap-3">
+          <div class="d-flex align-items-center gap-3">
+            <h5 class="fw-bold mb-0 text-white"><i class="fa-solid fa-users text-primary me-2"></i> کاربران پنل</h5>
+            <input type="text" id="userSearchInput" class="form-control form-control-dark form-control-sm" placeholder="جستجوی کاربر..." style="max-width: 200px;">
+            <select id="userFilterSelect" class="form-select form-control-dark form-control-sm" style="max-width: 140px;">
+              <option value="all">همه وضعیت‌ها</option>
+              <option value="active">فعال</option>
+              <option value="expired">منقضی/حجم پر</option>
+              <option value="disabled">غیرفعال</option>
+            </select>
+          </div>
+
           <button id="tourAddUserBtn" class="btn btn-primary rounded-3 px-3" data-bs-toggle="modal" data-bs-target="#createUserModal">
-            <i class="fa-solid fa-plus me-1"></i> ایجاد کاربر جدید
+            <i class="fa-solid fa-user-plus me-1"></i> ایجاد کاربر جدید
           </button>
         </div>
 
@@ -202,6 +249,64 @@
     </div>
   </div>
 
+  <!-- ==================== مودال اسکنر آی‌پی تمیز ==================== -->
+  <div class="modal fade" id="cleanIpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content modal-content-dark">
+        <div class="modal-header modal-header-dark">
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-network-wired me-2 text-info"></i> اسکنر و مدیریت آی‌پی‌های تمیز</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="text-muted small mb-3">آی‌پی تمیز باعث بهبود اتصال و پینگ پایین‌تر در اپراتورهای مختلف کشور می‌شود.</p>
+
+          <div class="mb-4">
+            <label class="form-label small text-white fw-bold">آی‌پی یا دامنه تمیز فعلی پنل:</label>
+            <div class="input-group">
+              <input type="text" id="currentCleanIpInput" class="form-control form-control-dark" placeholder="آدرس دامنه اصلی سرور (پیش‌فرض)">
+              <button class="btn btn-info text-white" onclick="saveCleanIpFromModal()">
+                <i class="fa-solid fa-save me-1"></i> اعمال آی‌پی تمیز
+              </button>
+            </div>
+          </div>
+
+          <h6 class="fw-bold text-white mb-3">آی‌پی‌های تمیز پیشنهادی سرور:</h6>
+          <div class="row g-3" id="cleanIpsContainer">
+            <!-- از طریق JS بارگذاری می‌شود -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== مودال ربات تلگرام ==================== -->
+  <div class="modal fade" id="telegramModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-content-dark">
+        <div class="modal-header modal-header-dark">
+          <h5 class="modal-title fw-bold"><i class="fa-brands fa-telegram me-2 text-primary"></i> تنظیمات ربات تلگرام</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="telegramForm">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+              <label class="form-label small text-muted">توکن ربات (BotFather Token)</label>
+              <input type="text" id="telegramTokenInput" class="form-control form-control-dark" placeholder="123456789:ABCdefGHI...">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">شناسه عددی ادمین (Admin Chat ID)</label>
+              <input type="text" id="telegramAdminIdInput" class="form-control form-control-dark" placeholder="مثال: 987654321">
+            </div>
+          </div>
+          <div class="modal-footer modal-footer-dark">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+            <button type="submit" class="btn btn-primary px-4">ذخیره تنظیمات ربات</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== مودال ویرایش کاربر ==================== -->
   <div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -242,37 +347,42 @@
     </div>
   </div>
 
-  <!-- ==================== مودال تنظیمات ادمین ==================== -->
+  <!-- ==================== مودال تنظیمات پنل ==================== -->
   <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content modal-content-dark">
         <div class="modal-header modal-header-dark">
-          <h5 class="modal-title fw-bold"><i class="fa-solid fa-sliders me-2 text-info"></i> تنظیمات پنل و حساب ادمین</h5>
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-sliders me-2 text-info"></i> تنظیمات پنل دیزاینو</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form id="settingsForm">
           <div class="modal-body p-4">
             <div class="mb-3">
               <label class="form-label small text-muted">نام کاربری ادمین جدید</label>
-              <input type="text" id="settingUsername" class="form-control form-control-dark" placeholder="admin">
+              <input type="text" id="settingUsername" class="form-control form-control-dark">
             </div>
             <div class="mb-3">
               <label class="form-label small text-muted">کلمه عبور جدید (در صورت عدم تغییر خالی بگذارید)</label>
-              <input type="password" id="settingPassword" class="form-control form-control-dark" placeholder="••••••••">
+              <input type="password" id="settingPassword" class="form-control form-control-dark">
             </div>
             <hr class="border-secondary my-3">
-            <div class="mb-3">
-              <label class="form-label small text-muted">پورت ورودی Sing-box (VLESS Port)</label>
-              <input type="number" id="settingVlessPort" class="form-control form-control-dark" value="8443">
+            <h6 class="fw-bold text-white mb-2">پروتکل‌های خروجی اشتراک:</h6>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="settingEnableVlessWs" checked>
+              <label class="form-check-label small text-white" for="settingEnableVlessWs">فعال‌سازی VLESS-WS (پورت 443)</label>
             </div>
-            <div class="mb-3">
-              <label class="form-label small text-muted">نام سرویس gRPC (serviceName)</label>
-              <input type="text" id="settingServiceName" class="form-control form-control-dark" value="vless-grpc">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="settingEnableVlessGrpc" checked>
+              <label class="form-check-label small text-white" for="settingEnableVlessGrpc">فعال‌سازی VLESS-gRPC (پورت 443)</label>
+            </div>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="settingEnableTrojanWs" checked>
+              <label class="form-check-label small text-white" for="settingEnableTrojanWs">فعال‌سازی Trojan-WS (پورت 443)</label>
             </div>
           </div>
           <div class="modal-footer modal-footer-dark">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
-            <button type="submit" class="btn btn-info text-white px-4">به‌روزرسانی تنظیمات</button>
+            <button type="submit" class="btn btn-info text-white px-4">ذخیره تنظیمات</button>
           </div>
         </form>
       </div>
@@ -288,3 +398,4 @@
   <script src="/js/app.js"></script>
 </body>
 </html>
+
