@@ -1,31 +1,54 @@
 /* 
   استایل‌های اختصاصی «پنل دیزاینو وی پی ان» (Dizyno VPN Panel)
-  تم: Ultra Dark Glassmorphic RTL
+  پشتیبانی کامل از هر دو تم تیره (Dark) و روشن (Light) با کنتراست فوق‌العاده
 */
 
 @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
 
-:root {
+:root, [data-theme="dark"] {
   --bg-primary: #070a13;
-  --bg-card: rgba(18, 25, 41, 0.85);
-  --bg-card-hover: rgba(28, 38, 60, 0.9);
-  --border-color: rgba(255, 255, 255, 0.1);
+  --bg-card: rgba(18, 25, 41, 0.92);
+  --bg-card-hover: rgba(28, 38, 60, 0.95);
+  --bg-input: #090d16;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --text-main: #f8fafc;
+  --text-heading: #ffffff;
+  --text-muted: #94a3b8;
   --accent-blue: #3b82f6;
   --accent-cyan: #38bdf8;
   --accent-purple: #818cf8;
   --accent-emerald: #34d399;
   --accent-rose: #f43f5e;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  --nav-bg: rgba(15, 23, 42, 0.85);
+  --table-header-bg: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-input: #ffffff;
+  --border-color: #cbd5e1;
+  --text-main: #0f172a;
+  --text-heading: #020617;
+  --text-muted: #475569;
+  --accent-blue: #2563eb;
+  --accent-cyan: #0284c7;
+  --accent-purple: #4f46e5;
+  --accent-emerald: #16a34a;
+  --accent-rose: #e11d48;
+  --nav-bg: #ffffff;
+  --table-header-bg: #f8fafc;
 }
 
 body {
   font-family: 'Vazirmatn', sans-serif;
-  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #070a13 70%);
+  background: var(--bg-primary);
   color: var(--text-main);
   min-height: 100vh;
   margin: 0;
   padding: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* سفارشی‌سازی اسکرول‌بار */
@@ -34,14 +57,11 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--border-color);
   border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
 }
 
 /* صفحه راه‌اندازی اولیه و لاگین */
@@ -50,7 +70,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top right, #312e81 0%, #070a13 60%);
   padding: 20px;
 }
 
@@ -63,13 +82,13 @@ body {
   padding: 40px;
   width: 100%;
   max-width: 440px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
 }
 
 .brand-icon {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -82,7 +101,7 @@ body {
 
 /* نوار بالای داشبورد */
 .navbar-custom {
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--nav-bg);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
   padding: 16px 30px;
@@ -91,17 +110,17 @@ body {
 /* کارت‌های آمار */
 .stat-card {
   background: var(--bg-card);
-  backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
   border-radius: 20px;
   padding: 22px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(56, 189, 248, 0.4);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
 }
 
 .stat-icon {
@@ -122,11 +141,10 @@ body {
 /* جدول کاربران */
 .table-custom-wrapper {
   background: var(--bg-card);
-  backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .table-custom {
@@ -135,10 +153,10 @@ body {
 }
 
 .table-custom th {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--table-header-bg);
   border-bottom: 1px solid var(--border-color);
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: 700;
   padding: 18px 24px;
 }
 
@@ -146,6 +164,7 @@ body {
   padding: 18px 24px;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
+  color: var(--text-main);
 }
 
 .table-custom tr:last-child td {
@@ -166,13 +185,18 @@ body {
   align-items: center;
 }
 
-.badge-active { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
-.badge-expired { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); }
-.badge-disabled { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+.badge-active { background: rgba(52, 211, 153, 0.15); color: #16a34a; border: 1px solid rgba(52, 211, 153, 0.3); }
+[data-theme="dark"] .badge-active { color: #34d399; }
+
+.badge-expired { background: rgba(244, 63, 94, 0.15); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.3); }
+[data-theme="dark"] .badge-expired { color: #f43f5e; }
+
+.badge-disabled { background: rgba(148, 163, 184, 0.15); color: #64748b; border: 1px solid rgba(148, 163, 184, 0.3); }
+[data-theme="dark"] .badge-disabled { color: #cbd5e1; }
 
 /* آی‌پی‌های تمیز */
 .clean-ip-card {
-  background: rgba(15, 23, 42, 0.7);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 16px;
@@ -186,12 +210,11 @@ body {
 
 /* مودال‌ها */
 .modal-content-dark {
-  background: rgba(18, 25, 41, 0.95);
-  backdrop-filter: blur(20px);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 24px;
   color: var(--text-main);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
 }
 
 .modal-header-dark {
@@ -205,7 +228,7 @@ body {
 }
 
 .form-control-dark {
-  background: #090d16;
+  background: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-main);
   border-radius: 14px;
@@ -214,7 +237,7 @@ body {
 }
 
 .form-control-dark:focus {
-  background: #090d16;
+  background: var(--bg-input);
   border-color: var(--accent-cyan);
   color: var(--text-main);
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
@@ -235,6 +258,7 @@ body {
 .btn-action:hover {
   transform: scale(1.1);
 }
+
 
 /* تور آموزشی Intro.js */
 .introjs-tooltip {
