@@ -177,6 +177,262 @@ function rebuildSingboxConfig() {
   restartSingboxProcess();
 }
 
+// ---- سیستم ربات تلگرام تعاملی ----
+
+let lastTelegramUpdateId = 0;
+let telegramPollingTimeout = null;
+
+function sendTelegramMessage(text, replyMarkup = null, customChatId = null) {
+  const settings = getSettings();
+  if (!settings.telegramBotToken) return;
+
+  const chatId = customChatId || settings.telegramAdminId;
+  if (!chatId) return;
+
+  const payload = {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'Markdown'
+  };
+
+  if (replyMarkup) {
+    payload.reply_markup = replyMarkup;
+  }
+
+  const data = JSON.stringify(payload);
+  const req = https.request({
+    hostname: 'api.telegram.org',
+    path: `/bot${settings.telegramBotToken}/sendMessage`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data)
+    }
+  }, (res) => {});
+
+  req.on('error', () => {});
+  req.write(data);
+  req.end();
+}
+
+// کیبورد منوی اصلی ربات تلگرام
+function getTelegramMainMenuKeyboard() {
+  return {
+    keyboard: [
+      [{ text: '📊 آمار سرور' }, { text: '👥 لیست کاربران' }],
+      [{ text: '➕ ساخت کاربر جدید' }, { text: '🔍 استعلام کاربر' }]
+    ],
+    resize_keyboard: true,
+    persistent: true
+  };
+}
+
+// موتور تعاملی پایش پیام‌های تلگرام (Long Polling)
+function initTelegramBot() {
+  if (telegramPollingTimeout) clearTimeout(telegramPollingTimeout);
+
+  const settings = getSettings();
+  if (!settings.telegramBotToken) {
+    telegramPollingTimeout = setTimeout(initTelegramBot, 10000);
+    return;
+  }
+
+  const req = https.request({
+    hostname: 'api.telegram.org',
+    path: `/bot${settings.telegramBotToken}/getUpdates?offset=${lastTelegramUpdateId + 1}&timeout=15`,
+    method: 'GET'
+  }, (res) => {
+    let body = '';
+    res.on('data', chunk => body += chunk);
+    res.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        if (data.ok && Array.isArray(data.result)) {
+          for (const update of data.result) {
+            lastTelegramUpdateId = update.update_id;
+            handleTelegramUpdate(update);
+          }
+        }
+      } catch (e) {}
+      telegramPollingTimeout = setTimeout(initTelegramBot, 1500);
+    });
+  });
+
+  req.on('error', () => {
+    telegramPollingTimeout = setTimeout(initTelegramBot, 5000);
+  });
+  req.end();
+}
+
+// پردازش دستورات ورودی از ربات تلگرام
+function handleTelegramUpdate(update) {
+  if (!update.message || !update.message.text) return;
+
+  const msg = update.message;
+  const chatId = msg.chat.id;
+  const text = msg.text.trim();
+
+  const settings = getSettings();
+  // تنها پاسخ به ادمین یا در صورت عدم تنظیم ادمین آی‌دی به همه
+  if (settings.telegramAdminId && chatId.toString() !== settings.telegramAdminId.toString()) {
+    sendTelegramMessage('⛔ دسترسی غیرمجاز. این ربات تنها برای مدیریت سرور تنظیم شده است.', null, chatId);
+    return;
+  }
+
+  // دستور /start یا منو
+  if (text === '/start' || text === 'منو' || text === 'menu') {
+    sendTelegramMessage(
+      `⚡ **به ربات مدیریتی «دیزاینو وی پی ان» خوش آمدید!**\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:`,
+      getTelegramMainMenuKeyboard(),
+      chatId
+    );
+    return;
+  }
+
+  // آمار سرور
+  if (text === '📊 آمار سرور' || text === '/stats') {
+    const users = getUsers();
+    const today = new Date().toISOString().split('T')[0];
+
+    const totalUsers = users.length;
+    const activeUsers = users.filter(u => u.status === 'active' && (!u.expireDate || u.expireDate >= today) && (u.limitBytes === 0 || u.usedBytes < u.limitBytes)).length;
+    const expiredUsers = users.filter(u => (u.expireDate && u.expireDate < today) || (u.limitBytes > 0 && u.usedBytes >= u.limitBytes)).length;
+
+    const totalUsedBytes = users.reduce((acc, u) => acc + (u.usedBytes || 0), 0);
+    const usedGB = (totalUsedBytes / (1024 * 1024 * 1024)).toFixed(2);
+
+    sendTelegramMessage(
+      `📊 **آمار کلی پنل دیزاینو وی پی ان:**\n\n` +
+      `👥 **کل کاربران:** ${totalUsers} نفر\n` +
+      `✅ **کاربران فعال:** ${activeUsers} نفر\n` +
+      `❌ **کاربران منقضی:** ${expiredUsers} نفر\n` +
+      `🌐 **کل ترافیک مصرفی:** ${usedGB} GB`,
+      getTelegramMainMenuKeyboard(),
+      chatId
+    );
+    return;
+  }
+
+  // لیست کاربران
+  if (text === '👥 لیست کاربران' || text === '/users') {
+    const users = getUsers();
+    if (users.length === 0) {
+      sendTelegramMessage('ℹ️ هیچ کاربری در پنل ثبت نشده است.', getTelegramMainMenuKeyboard(), chatId);
+      return;
+    }
+
+    let reply = `👥 **لیست کاربران پنل:**\n\n`;
+    users.slice(0, 15).forEach((u, i) => {
+      const usedGB = (u.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
+      const limitGB = u.limitBytes > 0 ? (u.limitBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : 'نامحدود';
+      reply += `${i + 1}. 👤 **${u.name}** | 📊 ${usedGB}/${limitGB} | ⏳ ${u.expireDate || 'نامحدود'}\n/sub_${u.uuid}\n\n`;
+    });
+
+    sendTelegramMessage(reply, getTelegramMainMenuKeyboard(), chatId);
+    return;
+  }
+
+  // راهنمای ساخت کاربر
+  if (text === '➕ ساخت کاربر جدید' || text === '/create') {
+    sendTelegramMessage(
+      `➕ **راهنمای ساخت کاربر جدید:**\n\n` +
+      `لطفاً دستور ساخت را به این فرمت ارسال کنید:\n` +
+      `\`create نام_کاربر حجم_GB روز_اعتبار\`\n\n` +
+      `📌 **مثال ساخت کاربر با ۵۰ گیگ و ۳۰ روز:**\n` +
+      `\`create ali 50 30\``,
+      getTelegramMainMenuKeyboard(),
+      chatId
+    );
+    return;
+  }
+
+  // ساخت کاربر مستقیم
+  if (text.startsWith('create ')) {
+    const parts = text.split(' ');
+    const name = parts[1];
+    const limitGB = parts[2] ? parseFloat(parts[2]) : 0;
+    const expireDays = parts[3] ? parseInt(parts[3]) : 0;
+
+    if (!name) {
+      sendTelegramMessage('❌ لطفاً نام کاربر را وارد کنید.', getTelegramMainMenuKeyboard(), chatId);
+      return;
+    }
+
+    const users = getUsers();
+    let expireDate = null;
+    if (expireDays > 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + expireDays);
+      expireDate = d.toISOString().split('T')[0];
+    }
+
+    const newUser = {
+      id: uuidv4(),
+      name: name.trim(),
+      uuid: uuidv4(),
+      limitBytes: limitGB * 1024 * 1024 * 1024,
+      usedBytes: 0,
+      expireDate: expireDate,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+
+    users.push(newUser);
+    saveUsers(users);
+
+    const subUrl = `http://${settings.cleanIp || 'سرور'}/sub/${newUser.uuid}`;
+
+    sendTelegramMessage(
+      `✅ **کاربر با موفقیت ایجاد شد!**\n\n` +
+      `👤 **نام:** ${newUser.name}\n` +
+      `📊 **حجم:** ${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}\n` +
+      `⏳ **اعتبار:** ${expireDays > 0 ? expireDays + ' روز' : 'نامحدود'}\n\n` +
+      `🔑 **UUID:** \`${newUser.uuid}\`\n\n` +
+      `🔗 **لینک ساب:**\n\`${subUrl}\``,
+      getTelegramMainMenuKeyboard(),
+      chatId
+    );
+    return;
+  }
+
+  // استعلام کاربر
+  if (text === '🔍 استعلام کاربر') {
+    sendTelegramMessage(
+      `🔍 **راهنمای استعلام کاربر:**\n\n` +
+      `برای دریافت لینک ساب و آمار کاربر، نام یا UUID آن را ارسال کنید:\n` +
+      `مثال:\n\`info ali\``,
+      getTelegramMainMenuKeyboard(),
+      chatId
+    );
+    return;
+  }
+
+  if (text.startsWith('info ') || text.startsWith('/sub_')) {
+    const query = text.replace('info ', '').replace('/sub_', '').trim().toLowerCase();
+    const users = getUsers();
+    const user = users.find(u => u.name.toLowerCase() === query || u.uuid.toLowerCase() === query || u.id === query);
+
+    if (!user) {
+      sendTelegramMessage('❌ کاربر یافت نشد.', getTelegramMainMenuKeyboard(), chatId);
+      return;
+    }
+
+    const usedGB = (user.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
+    const limitGB = user.limitBytes > 0 ? (user.limitBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : 'نامحدود';
+
+    sendTelegramMessage(
+      `👤 **اطلاعات کاربر ${user.name}:**\n\n` +
+      `📊 **حجم مصرفی:** ${usedGB} / ${limitGB}\n` +
+      `⏳ **تاریخ انقضا:** ${user.expireDate || 'نامحدود'}\n` +
+      `🔑 **UUID:** \`${user.uuid}\`\n\n` +
+      `🔗 **لینک ساب:**\n\`/sub/${user.uuid}\``,
+      getTelegramMainMenuKeyboard(),
+      chatId
+    );
+    return;
+  }
+}
+
 function restartSingboxProcess() {
   if (singboxProcess) {
     try {
