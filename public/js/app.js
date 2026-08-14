@@ -1,9 +1,21 @@
 /**
- * منطق فرانت‌اند داشبورد مدیریت Sing-box
+ * منطق فرانت‌اند داشبورد مدیریت «دیزاینو وی پی ان» (Dizyno VPN Panel)
  */
 
+let globalUsersList = [];
+let globalSettings = {};
+
 document.addEventListener('DOMContentLoaded', () => {
-  checkAuth();
+  initApp();
+
+  // فرم راه‌اندازی اولیه
+  document.getElementById('setupForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('setupUsername').value;
+    const password = document.getElementById('setupPassword').value;
+    const cleanIp = document.getElementById('setupCleanIp').value;
+    await setupInitial(username, password, cleanIp);
+  });
 
   // فرم ورود
   document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
@@ -25,11 +37,21 @@ document.addEventListener('DOMContentLoaded', () => {
     await updateUser();
   });
 
-  // فرم تغییر کلمه عبور
+  // فرم تغییر تنظیمات عمومی
   document.getElementById('settingsForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    await changePassword();
+    await changeSettings();
   });
+
+  // فرم تنظیمات تلگرام
+  document.getElementById('telegramForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await saveTelegramSettings();
+  });
+
+  // رویدادهای جستجو و فیلتر کاربران
+  document.getElementById('userSearchInput')?.addEventListener('input', renderUsersTable);
+  document.getElementById('userFilterSelect')?.addEventListener('change', renderUsersTable);
 });
 
 // توابع مدیریت پیام‌ها
@@ -58,23 +80,35 @@ function showToast(message, type = 'success') {
   }, 4000);
 }
 
-// بررسی وضعیت ورود
-async function checkAuth() {
+// بررسی راه‌اندازی اولیه و احراز هویت
+async function initApp() {
   try {
-    const res = await fetch('/api/check-auth');
-    const data = await res.json();
+    const setupRes = await fetch('/api/setup-status');
+    const setupData = await setupRes.json();
 
-    if (data.success) {
+    if (!setupData.isConfigured) {
+      // اگر پنل راه‌اندازی اولیه نشده است
+      document.getElementById('setupSection').classList.remove('d-none');
+      document.getElementById('loginSection').classList.add('d-none');
+      document.getElementById('dashboardSection').classList.add('d-none');
+      return;
+    } else {
+      document.getElementById('setupSection').classList.add('d-none');
+    }
+
+    // بررسی ورود ادمین
+    const authRes = await fetch('/api/check-auth');
+    const authData = await authRes.json();
+
+    if (authData.success) {
+      globalSettings = authData.settings || {};
       document.getElementById('loginSection').classList.add('d-none');
       document.getElementById('dashboardSection').classList.remove('d-none');
-      document.getElementById('adminNameDisplay').innerText = data.username;
+      document.getElementById('adminNameDisplay').innerText = authData.username;
       
+      populateSettingsModal();
       await loadDashboardData();
-
-      // اگر ادمین برای بار اول وارد شده، تور آموزش نشان داده شود
-      if (!localStorage.getItem('singbox_tour_seen')) {
-        setTimeout(startOnboardingTour, 1000);
-      }
+      await loadCleanIpsModal();
     } else {
       document.getElementById('loginSection').classList.remove('d-none');
       document.getElementById('dashboardSection').classList.add('d-none');
@@ -82,6 +116,27 @@ async function checkAuth() {
   } catch (err) {
     document.getElementById('loginSection').classList.remove('d-none');
     document.getElementById('dashboardSection').classList.add('d-none');
+  }
+}
+
+// راه‌اندازی اولیه سرور
+async function setupInitial(username, password, cleanIp) {
+  try {
+    const res = await fetch('/api/setup-initial', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, cleanIp })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast(data.message, 'success');
+      await initApp();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (e) {
+    showToast('خطا در ثبت اطلاعات راه‌اندازی اولیه.', 'error');
   }
 }
 
@@ -97,7 +152,7 @@ async function login(username, password) {
 
     if (data.success) {
       showToast(data.message, 'success');
-      await checkAuth();
+      await initApp();
     } else {
       showToast(data.message, 'error');
     }
@@ -111,7 +166,7 @@ async function logout() {
   try {
     await fetch('/api/logout', { method: 'POST' });
     showToast('از سیستم خارج شدید.', 'success');
-    checkAuth();
+    initApp();
   } catch (e) {
     location.reload();
   }
@@ -140,85 +195,113 @@ async function loadStats() {
   } catch (e) {}
 }
 
-// دریافت و نمایش کاربران
+// دریافت کاربران
 async function loadUsers() {
   try {
     const res = await fetch('/api/users');
     const data = await res.json();
-    if (!data.success) return;
-
-    const tbody = document.getElementById('usersTableBody');
-    tbody.innerHTML = '';
-
-    if (data.users.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="7" class="text-center text-muted py-4">
-            هیچ کاربری ثبت نشده است. روی دکمه "ایجاد کاربر جدید" کلیک کنید.
-          </td>
-        </tr>
-      `;
-      return;
+    if (data.success) {
+      globalUsersList = data.users || [];
+      renderUsersTable();
     }
-
-    const host = window.location.host;
-    const protocol = window.location.protocol;
-    const today = new Date().toISOString().split('T')[0];
-
-    data.users.forEach((u, index) => {
-      const usedGB = (u.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
-      const limitGB = u.limitBytes > 0 ? (u.limitBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : 'نامحدود';
-      
-      let statusBadge = `<span class="badge-status badge-active"><i class="fa-solid fa-check me-1"></i> فعال</span>`;
-      if (u.status === 'disabled') {
-        statusBadge = `<span class="badge-status badge-disabled"><i class="fa-solid fa-ban me-1"></i> غیرفعال</span>`;
-      } else if (u.expireDate && u.expireDate < today) {
-        statusBadge = `<span class="badge-status badge-expired"><i class="fa-solid fa-clock me-1"></i> منقضی</span>`;
-      } else if (u.limitBytes > 0 && u.usedBytes >= u.limitBytes) {
-        statusBadge = `<span class="badge-status badge-expired"><i class="fa-solid fa-database me-1"></i> حجم تمام شده</span>`;
-      }
-
-      const subUrl = `${protocol}//${host}/sub/${u.uuid}`;
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="fw-bold">${index + 1}</td>
-        <td>
-          <div class="fw-bold text-white">${u.name}</div>
-          <div class="small text-muted font-monospace" style="font-size: 0.75rem">${u.uuid.substring(0, 13)}...</div>
-        </td>
-        <td>${statusBadge}</td>
-        <td>
-          <div class="small">${usedGB} / ${limitGB}</div>
-        </td>
-        <td>
-          <div class="small text-slate-300">${u.expireDate || 'نامحدود'}</div>
-        </td>
-        <td>
-          <div class="d-flex gap-1 justify-content-center">
-            <button class="btn btn-sm btn-outline-info btn-action" onclick="copyToClipboard('${subUrl}', 'لینک ساب کپی شد!')" title="کپی لینک ساب (Subscription)">
-              <i class="fa-solid fa-link"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-success btn-action" onclick="openUserSubPage('${subUrl}')" title="مشاهده صفحه وب کاربر">
-              <i class="fa-solid fa-eye"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-warning btn-action" onclick="resetUserTraffic('${u.id}')" title="صفر کردن ترافیک مصرفی">
-              <i class="fa-solid fa-rotate"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-primary btn-action" onclick="openEditUserModal('${u.id}', '${u.name}', '${u.limitBytes ? u.limitBytes / (1024*1024*1024) : 0}', '${u.expireDate || ''}', '${u.status}')" title="ویرایش">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteUser('${u.id}', '${u.name}')" title="حذف">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
   } catch (e) {
     showToast('خطا در بارگذاری لیست کاربران.', 'error');
   }
+}
+
+// رندر جدول کاربران با قابلیت جستجو و فیلتر
+function renderUsersTable() {
+  const tbody = document.getElementById('usersTableBody');
+  if (!tbody) return;
+
+  const searchQuery = (document.getElementById('userSearchInput')?.value || '').toLowerCase().trim();
+  const filterStatus = document.getElementById('userFilterSelect')?.value || 'all';
+
+  const host = window.location.host;
+  const protocol = window.location.protocol;
+  const today = new Date().toISOString().split('T')[0];
+
+  let filteredUsers = globalUsersList.filter(u => {
+    // فیلتر متنی
+    const matchSearch = u.name.toLowerCase().includes(searchQuery) || u.uuid.toLowerCase().includes(searchQuery);
+    
+    // فیلتر وضعیت
+    let isExpiredOrLimit = (u.expireDate && u.expireDate < today) || (u.limitBytes > 0 && u.usedBytes >= u.limitBytes);
+    let userStatus = u.status;
+    if (userStatus === 'active' && isExpiredOrLimit) userStatus = 'expired';
+
+    if (filterStatus === 'all') return matchSearch;
+    if (filterStatus === 'active') return matchSearch && userStatus === 'active';
+    if (filterStatus === 'expired') return matchSearch && userStatus === 'expired';
+    if (filterStatus === 'disabled') return matchSearch && userStatus === 'disabled';
+    return matchSearch;
+  });
+
+  tbody.innerHTML = '';
+
+  if (filteredUsers.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted py-5">
+          <i class="fa-solid fa-folder-open display-6 d-block mb-2 opacity-50"></i>
+          هیچ کاربری یافت نشد. برای اضافه کردن کاربر روی دکمه "ایجاد کاربر جدید" کلیک کنید.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filteredUsers.forEach((u, index) => {
+    const usedGB = (u.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
+    const limitGB = u.limitBytes > 0 ? (u.limitBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : 'نامحدود';
+    
+    let statusBadge = `<span class="badge-status badge-active"><i class="fa-solid fa-check me-1"></i> فعال</span>`;
+    if (u.status === 'disabled') {
+      statusBadge = `<span class="badge-status badge-disabled"><i class="fa-solid fa-ban me-1"></i> غیرفعال</span>`;
+    } else if (u.expireDate && u.expireDate < today) {
+      statusBadge = `<span class="badge-status badge-expired"><i class="fa-solid fa-clock me-1"></i> منقضی</span>`;
+    } else if (u.limitBytes > 0 && u.usedBytes >= u.limitBytes) {
+      statusBadge = `<span class="badge-status badge-expired"><i class="fa-solid fa-database me-1"></i> حجم تمام‌شده</span>`;
+    }
+
+    const subUrl = `${protocol}//${host}/sub/${u.uuid}`;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="fw-bold">${index + 1}</td>
+      <td>
+        <div class="fw-bold text-white">${u.name}</div>
+        <div class="small text-muted font-monospace" style="font-size: 0.75rem">${u.uuid.substring(0, 13)}...</div>
+      </td>
+      <td>${statusBadge}</td>
+      <td>
+        <div class="small text-slate-200 fw-bold">${usedGB} / ${limitGB}</div>
+      </td>
+      <td>
+        <div class="small text-slate-300">${u.expireDate || 'نامحدود'}</div>
+      </td>
+      <td>
+        <div class="d-flex gap-1 justify-content-center">
+          <button class="btn btn-sm btn-outline-info btn-action" onclick="copyToClipboard('${subUrl}', 'لینک ساب کپی شد!')" title="کپی لینک ساب (Subscription)">
+            <i class="fa-solid fa-link"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-success btn-action" onclick="openUserSubPage('${subUrl}')" title="مشاهده صفحه ساب کاربر">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-warning btn-action" onclick="resetUserTraffic('${u.id}')" title="صفر کردن ترافیک مصرفی">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-primary btn-action" onclick="openEditUserModal('${u.id}', '${u.name}', '${u.limitBytes ? u.limitBytes / (1024*1024*1024) : 0}', '${u.expireDate || ''}', '${u.status}')" title="ویرایش">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteUser('${u.id}', '${u.name}')" title="حذف">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 // ساخت کاربر جدید
@@ -323,30 +406,128 @@ async function deleteUser(id, name) {
   }
 }
 
-// تغییر تنظیمات و کلمه عبور ادمین
-async function changePassword() {
+// پر کردن اطلاعات تنظیمات در مودال
+function populateSettingsModal() {
+  document.getElementById('settingUsername').value = globalSettings.username || '';
+  document.getElementById('settingEnableVlessWs').checked = globalSettings.enableVlessWs !== false;
+  document.getElementById('settingEnableVlessGrpc').checked = globalSettings.enableVlessGrpc !== false;
+  document.getElementById('settingEnableTrojanWs').checked = globalSettings.enableTrojanWs !== false;
+
+  document.getElementById('telegramTokenInput').value = globalSettings.telegramBotToken || '';
+  document.getElementById('telegramAdminIdInput').value = globalSettings.telegramAdminId || '';
+}
+
+// ذخیره تنظیمات عمومی
+async function changeSettings() {
   const newUsername = document.getElementById('settingUsername').value;
   const newPassword = document.getElementById('settingPassword').value;
-  const vlessPort = document.getElementById('settingVlessPort').value;
-  const serviceName = document.getElementById('settingServiceName').value;
+
+  const enableVlessWs = document.getElementById('settingEnableVlessWs').checked;
+  const enableVlessGrpc = document.getElementById('settingEnableVlessGrpc').checked;
+  const enableTrojanWs = document.getElementById('settingEnableTrojanWs').checked;
 
   try {
     const res = await fetch('/api/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newUsername, newPassword, vlessPort, serviceName })
+      body: JSON.stringify({ newUsername, newPassword, enableVlessWs, enableVlessGrpc, enableTrojanWs })
     });
     const data = await res.json();
 
     if (data.success) {
       showToast(data.message, 'success');
       bootstrap.Modal.getInstance(document.getElementById('settingsModal'))?.hide();
-      checkAuth();
+      initApp();
     } else {
       showToast(data.message, 'error');
     }
   } catch (e) {
     showToast('خطا در تغییر تنظیمات.', 'error');
+  }
+}
+
+// ذخیره تنظیمات ربات تلگرام
+async function saveTelegramSettings() {
+  const telegramBotToken = document.getElementById('telegramTokenInput').value;
+  const telegramAdminId = document.getElementById('telegramAdminIdInput').value;
+
+  try {
+    const res = await fetch('/api/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telegramBotToken, telegramAdminId })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast('تنظیمات ربات تلگرام با موفقیت ثبت گردید.', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('telegramModal'))?.hide();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (e) {
+    showToast('خطا در ثبت تنظیمات تلگرام.', 'error');
+  }
+}
+
+// بارگذاری مودال آی‌پی تمیز
+async function loadCleanIpsModal() {
+  try {
+    const res = await fetch('/api/clean-ips');
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById('currentCleanIpInput').value = data.currentCleanIp || '';
+      
+      const container = document.getElementById('cleanIpsContainer');
+      if (!container) return;
+
+      container.innerHTML = '';
+      data.presetIps.forEach(item => {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-md-6';
+        col.innerHTML = `
+          <div class="clean-ip-card d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-white small">${item.name}</div>
+              <code class="text-info small">${item.ip}</code>
+              <div class="text-muted extra-small" style="font-size: 0.75rem;">${item.latency}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-info rounded-3" onclick="applyPresetCleanIp('${item.ip}')">
+              انتخاب
+            </button>
+          </div>
+        `;
+        container.appendChild(col);
+      });
+    }
+  } catch (e) {}
+}
+
+function applyPresetCleanIp(ip) {
+  document.getElementById('currentCleanIpInput').value = ip;
+  saveCleanIpFromModal();
+}
+
+async function saveCleanIpFromModal() {
+  const cleanIp = document.getElementById('currentCleanIpInput').value;
+
+  try {
+    const res = await fetch('/api/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cleanIp })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast('آی‌پی تمیز با موفقیت روی تمامی کانفیگ‌ها اعمال شد.', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('cleanIpModal'))?.hide();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (e) {
+    showToast('خطا در ثبت آی‌پی تمیز.', 'error');
   }
 }
 
@@ -365,8 +546,6 @@ function openUserSubPage(url) {
 
 // تور آموزش تعاملی (Intro.js)
 function startOnboardingTour() {
-  localStorage.setItem('singbox_tour_seen', 'true');
-  
   introJs().setOptions({
     nextLabel: 'بعدی',
     prevLabel: 'قبلی',
@@ -375,29 +554,25 @@ function startOnboardingTour() {
     showProgress: true,
     steps: [
       {
-        title: 'به پنل Sing-box خوش آمدید! 👋',
-        intro: 'این تور کوتاه به شما کمک می‌کند بخش‌های مختلف پنل مدیریت جدید خود را بشناسید.'
+        title: 'به پنل دیزاینو وی پی ان خوش آمدید! 👋',
+        intro: 'این پنل برای ایجاد کاربران، تنظیم پروتکل‌های VLESS و Trojan و مدیریت آی‌پی‌های تمیز طراحی شده است.'
       },
       {
         element: document.querySelector('#tourStats'),
         title: 'کارت‌های آمار 📊',
-        intro: 'در این بخش می‌توانید آمار کلی کاربران، تعداد کاربران فعال، ترافیک تخصیص داده شده و مصرفی را مشاهده کنید.'
+        intro: 'نمایش تعداد کل کاربران، کاربران فعال، ترافیک تخصیصی و ترافیک کل مصرفی.'
       },
       {
         element: document.querySelector('#tourAddUserBtn'),
         title: 'ساخت کاربر جدید ➕',
-        intro: 'با کلیک روی این دکمه می‌توانید کاربر جدید با نام، حجم مجاز (GB) و تعداد روز اعتبار ایجاد کنید.'
+        intro: 'ایجاد کاربر جدید با نام، حجم مجاز (GB) و مدت زمان اعتبار به روز.'
       },
       {
         element: document.querySelector('#tourUsersTable'),
-        title: 'جدول مدیریت کاربران 👥',
-        intro: 'در این جدول تمامی کاربران نمایش داده می‌شوند و می‌توانید لینک ساب (Subscription) آن‌ها را کپی کنید یا ترافیک آن‌ها را صفر کنید.'
-      },
-      {
-        element: document.querySelector('#tourGuideLink'),
-        title: 'راهنمای نصب و دپلوی 📚',
-        intro: 'اگر نیاز به راهنمای کامل استقرار پروژه روی پلتفرم Railway داشتید، روی این لینک کلیک کنید.'
+        title: 'لیست کاربران و ابزارها 👥',
+        intro: 'امکان جستجوی آنی، فیلتر وضعیت، کپی لینک سابسکریپشن و مشاهده صفحه گرافیکی کاربر.'
       }
     ]
   }).start();
 }
+
