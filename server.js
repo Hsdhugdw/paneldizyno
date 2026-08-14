@@ -553,7 +553,7 @@ app.get('/guide', (req, res) => {
 // راه اندازی سرور
 rebuildSingboxConfig();
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
   console.log(`🚀 پنل مدیریت VPN با هسته Sing-box اجرا شد.`);
   console.log(`🌐 پورت سرور: ${PORT}`);
