@@ -27,7 +27,6 @@ COPY . .
 
 # تعریف پورت عمومی و داکر والوم (Docker Volume)
 EXPOSE 8080
-VOLUME ["/app/data"]
 
 # متغیر محیطی مسیر داده‌ها
 ENV DATA_DIR=/app/data
