@@ -284,26 +284,39 @@
 
   <!-- ==================== مودال ربات تلگرام ==================== -->
   <div class="modal fade" id="telegramModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content modal-content-dark">
         <div class="modal-header modal-header-dark">
-          <h5 class="modal-title fw-bold"><i class="fa-brands fa-telegram me-2 text-primary"></i> تنظیمات ربات تلگرام</h5>
+          <h5 class="modal-title fw-bold"><i class="fa-brands fa-telegram me-2 text-info"></i> مدیریت و تنظیمات ربات تلگرام</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form id="telegramForm">
           <div class="modal-body p-4">
+            <div class="p-3 mb-4 rounded-4" style="background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2);">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="fa-solid fa-robot text-info fs-5"></i>
+                <h6 class="fw-bold text-white mb-0">ربات مدیریتی تعاملی «دیزاینو وی پی ان»</h6>
+              </div>
+              <p class="text-muted small mb-0">با ثبت توکن و کلیک بر روی دکمه فعال‌سازی، ربات به صورت خودکار شروع به کار کرده و پاسخگوی دستورات /start و منوهای مدیریت خواهد بود.</p>
+            </div>
+
             <div class="mb-3">
-              <label class="form-label small text-muted">توکن ربات (BotFather Token)</label>
-              <input type="text" id="telegramTokenInput" class="form-control form-control-dark" placeholder="123456789:ABCdefGHI...">
+              <label class="form-label text-white fw-bold">توکن ربات (BotFather Token)</label>
+              <div class="input-group">
+                <input type="text" id="telegramTokenInput" class="form-control form-control-dark" placeholder="مثال: 123456789:ABCdefGHI...">
+                <button type="button" class="btn btn-info text-white px-3 fw-bold" onclick="triggerRailwaySetWebhook()">
+                  ⚡ فعال‌سازی و تست ربات
+                </button>
+              </div>
             </div>
             <div class="mb-3">
-              <label class="form-label small text-muted">شناسه عددی ادمین (Admin Chat ID)</label>
-              <input type="text" id="telegramAdminIdInput" class="form-control form-control-dark" placeholder="مثال: 987654321">
+              <label class="form-label text-white fw-bold">شناسه عددی ادمین (Admin Chat ID)</label>
+              <input type="text" id="telegramAdminIdInput" class="form-control form-control-dark" placeholder="مثال: 8650344689">
             </div>
           </div>
           <div class="modal-footer modal-footer-dark">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
-            <button type="submit" class="btn btn-primary px-4">ذخیره تنظیمات ربات</button>
+            <button type="submit" class="btn btn-primary px-4 fw-bold">ذخیره تنظیمات ربات</button>
           </div>
         </form>
       </div>
@@ -352,23 +365,52 @@
 
   <!-- ==================== مودال تنظیمات پنل ==================== -->
   <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content modal-content-dark">
         <div class="modal-header modal-header-dark">
-          <h5 class="modal-title fw-bold"><i class="fa-solid fa-sliders me-2 text-info"></i> تنظیمات پنل دیزاینو</h5>
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-sliders me-2 text-info"></i> تنظیمات کامل پنل دیزاینو</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form id="settingsForm">
           <div class="modal-body p-4">
-            <div class="mb-3">
-              <label class="form-label small text-muted">نام کاربری ادمین جدید</label>
-              <input type="text" id="settingUsername" class="form-control form-control-dark">
+            <h6 class="fw-bold text-white mb-3"><i class="fa-solid fa-user-shield me-2 text-primary"></i> اطلاعات حساب ادمین</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label text-white fw-bold">نام کاربری ادمین</label>
+                <input type="text" id="settingUsername" class="form-control form-control-dark">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-white fw-bold">کلمه عبور جدید (اختیاری)</label>
+                <input type="password" id="settingPassword" class="form-control form-control-dark">
+              </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label small text-muted">کلمه عبور جدید (در صورت عدم تغییر خالی بگذارید)</label>
-              <input type="password" id="settingPassword" class="form-control form-control-dark">
+
+            <!-- کادر اختصاصی ربات تلگرام -->
+            <div class="p-3 mb-4 rounded-4" style="background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2);">
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-bold text-info mb-0 d-flex align-items-center gap-2">
+                  <i class="fa-brands fa-telegram fs-4"></i> مدیریت و ربات تعاملی تلگرام
+                </h6>
+                <span class="badge bg-info text-dark rounded-pill px-3 py-1 fw-bold">نسخه هوشمند</span>
+              </div>
+              <p class="text-muted small mb-3">با ثبت توکن و کلیک بر روی دکمه فعال‌سازی، ربات به صورت خودکار شروع به کار کرده و پاسخگوی دستورات /start و منوهای مدیریت خواهد بود.</p>
+
+              <div class="mb-3">
+                <label class="form-label text-white fw-bold">توکن ربات (BotFather Token)</label>
+                <div class="input-group">
+                  <input type="text" id="settingTelegramToken" class="form-control form-control-dark" placeholder="مثال: 123456789:ABCdefGHI...">
+                  <button type="button" class="btn btn-info text-white px-3 fw-bold" onclick="triggerRailwaySetWebhookFromSettings()">
+                    ⚡ فعال‌سازی و تست ربات
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="form-label text-white fw-bold">Chat ID عددی ادمین در تلگرام</label>
+                <input type="text" id="settingTelegramAdminId" class="form-control form-control-dark" placeholder="مثال: 8650344689">
+              </div>
             </div>
-            <hr class="border-secondary my-3">
+
             <h6 class="fw-bold text-white mb-2">پروتکل‌های خروجی اشتراک:</h6>
             <div class="form-check form-switch mb-2">
               <input class="form-check-input" type="checkbox" id="settingEnableVlessWs" checked>
@@ -385,7 +427,7 @@
           </div>
           <div class="modal-footer modal-footer-dark">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
-            <button type="submit" class="btn btn-info text-white px-4">ذخیره تنظیمات</button>
+            <button type="submit" class="btn btn-info text-white px-4">ذخیره تمام تنظیمات</button>
           </div>
         </form>
       </div>
