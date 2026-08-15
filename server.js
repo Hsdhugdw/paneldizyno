@@ -192,7 +192,7 @@ function sendTelegramMessage(text, replyMarkup = null, customChatId = null) {
   const payload = {
     chat_id: chatId,
     text: text,
-    parse_mode: 'Markdown'
+    parse_mode: 'HTML'
   };
 
   if (replyMarkup) {
@@ -264,7 +264,7 @@ function initTelegramBot() {
   req.end();
 }
 
-// پردازش دستورات ورودی از ربات تلگرام
+// پردازش دستورات ورودی از ربات تلگرام با پشتیبانی از HTML و کدهای عددی
 function handleTelegramUpdate(update) {
   if (!update.message || !update.message.text) return;
 
@@ -273,7 +273,6 @@ function handleTelegramUpdate(update) {
   const text = msg.text.trim();
 
   const settings = getSettings();
-  // تنها پاسخ به ادمین یا در صورت عدم تنظیم ادمین آی‌دی به همه
   if (settings.telegramAdminId && chatId.toString() !== settings.telegramAdminId.toString()) {
     sendTelegramMessage('⛔ دسترسی غیرمجاز. این ربات تنها برای مدیریت سرور تنظیم شده است.', null, chatId);
     return;
@@ -282,7 +281,7 @@ function handleTelegramUpdate(update) {
   // دستور /start یا منو
   if (text === '/start' || text === 'منو' || text === 'menu') {
     sendTelegramMessage(
-      `⚡ **به ربات مدیریتی «دیزاینو وی پی ان» خوش آمدید!**\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:`,
+      `⚡ <b>به ربات مدیریتی «دیزاینو وی پی ان» خوش آمدید!</b>\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:`,
       getTelegramMainMenuKeyboard(),
       chatId
     );
@@ -302,18 +301,18 @@ function handleTelegramUpdate(update) {
     const usedGB = (totalUsedBytes / (1024 * 1024 * 1024)).toFixed(2);
 
     sendTelegramMessage(
-      `📊 **آمار کلی پنل دیزاینو وی پی ان:**\n\n` +
-      `👥 **کل کاربران:** ${totalUsers} نفر\n` +
-      `✅ **کاربران فعال:** ${activeUsers} نفر\n` +
-      `❌ **کاربران منقضی:** ${expiredUsers} نفر\n` +
-      `🌐 **کل ترافیک مصرفی:** ${usedGB} GB`,
+      `📊 <b>آمار کلی پنل دیزاینو وی پی ان:</b>\n\n` +
+      `👥 <b>کل کاربران:</b> ${totalUsers} نفر\n` +
+      `✅ <b>کاربران فعال:</b> ${activeUsers} نفر\n` +
+      `❌ <b>کاربران منقضی:</b> ${expiredUsers} نفر\n` +
+      `🌐 <b>کل ترافیک مصرفی:</b> ${usedGB} GB`,
       getTelegramMainMenuKeyboard(),
       chatId
     );
     return;
   }
 
-  // لیست کاربران
+  // لیست کاربران با شماره‌های عددی سریع /user_1, /user_2
   if (text === '👥 لیست کاربران' || text === '/users') {
     const users = getUsers();
     if (users.length === 0) {
@@ -321,11 +320,17 @@ function handleTelegramUpdate(update) {
       return;
     }
 
-    let reply = `👥 **لیست کاربران پنل:**\n\n`;
-    users.slice(0, 15).forEach((u, i) => {
+    let reply = `👥 <b>لیست کاربران پنل (${users.length} نفر):</b>\n\n`;
+    users.forEach((u, i) => {
+      const num = i + 1;
       const usedGB = (u.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
-      const limitGB = u.limitBytes > 0 ? (u.limitBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : 'نامحدود';
-      reply += `${i + 1}. 👤 **${u.name}** | 📊 ${usedGB}/${limitGB} | ⏳ ${u.expireDate || 'نامحدود'}\n/sub_${u.uuid}\n\n`;
+      const limitGB = u.limitBytes > 0 ? (u.limitBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : 'نامحدود';
+      let expireText = 'نامحدود';
+      if (u.expireDate) {
+        const diffDays = Math.ceil((new Date(u.expireDate) - new Date()) / (1024 * 60 * 60 * 24));
+        expireText = diffDays > 0 ? `${diffDays} روز باقي` : 'منقضی';
+      }
+      reply += `${num}. 👤 <b>${u.name}</b> | 📊 ${usedGB}/${limitGB} | ⏳ ${expireText}\n👉 دریافت لینک: /user_${num}\n\n`;
     });
 
     sendTelegramMessage(reply, getTelegramMainMenuKeyboard(), chatId);
@@ -335,11 +340,11 @@ function handleTelegramUpdate(update) {
   // راهنمای ساخت کاربر
   if (text === '➕ ساخت کاربر جدید' || text === '/create') {
     sendTelegramMessage(
-      `➕ **راهنمای ساخت کاربر جدید:**\n\n` +
-      `لطفاً دستور ساخت را به این فرمت ارسال کنید:\n` +
-      `\`create نام_کاربر حجم_GB روز_اعتبار\`\n\n` +
-      `📌 **مثال ساخت کاربر با ۵۰ گیگ و ۳۰ روز:**\n` +
-      `\`create ali 50 30\``,
+      `➕ <b>راهنمای ساخت کاربر جدید:</b>\n\n` +
+      `لطفاً دستور ساخت را ارسال کنید:\n` +
+      `<code>create نام_کاربر حجم_GB روز_اعتبار</code>\n\n` +
+      `📌 <b>مثال ساخت کاربر با ۵۰ گیگ و ۳۰ روز:</b>\n` +
+      `<code>create ali 50 30</code>`,
       getTelegramMainMenuKeyboard(),
       chatId
     );
@@ -383,49 +388,58 @@ function handleTelegramUpdate(update) {
     const subUrl = `http://${settings.cleanIp || 'سرور'}/sub/${newUser.uuid}`;
 
     sendTelegramMessage(
-      `✅ **کاربر با موفقیت ایجاد شد!**\n\n` +
-      `👤 **نام:** ${newUser.name}\n` +
-      `📊 **حجم:** ${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}\n` +
-      `⏳ **اعتبار:** ${expireDays > 0 ? expireDays + ' روز' : 'نامحدود'}\n\n` +
-      `🔑 **UUID:** \`${newUser.uuid}\`\n\n` +
-      `🔗 **لینک ساب:**\n\`${subUrl}\``,
+      `✅ <b>کاربر با موفقیت ایجاد شد!</b>\n\n` +
+      `👤 <b>نام:</b> ${newUser.name}\n` +
+      `📊 <b>حجم:</b> ${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}\n` +
+      `⏳ <b>اعتبار:</b> ${expireDays > 0 ? expireDays + ' روز' : 'نامحدود'}\n\n` +
+      `🔑 <b>UUID:</b> <code>${newUser.uuid}</code>\n\n` +
+      `🔗 <b>لینک سابسکریپشن:</b>\n<code>${subUrl}</code>`,
       getTelegramMainMenuKeyboard(),
       chatId
     );
     return;
   }
 
-  // استعلام کاربر
+  // استعلام کاربر بر اساس شماره (مثل /user_1 یا 1) یا نام یا UUID
   if (text === '🔍 استعلام کاربر') {
     sendTelegramMessage(
-      `🔍 **راهنمای استعلام کاربر:**\n\n` +
-      `برای دریافت لینک ساب و آمار کاربر، نام یا UUID آن را ارسال کنید:\n` +
-      `مثال:\n\`info ali\``,
+      `🔍 <b>راهنمای استعلام کاربر:</b>\n\n` +
+      `کافیست شماره کاربر (مثلاً <code>1</code> یا <code>/user_1</code>) یا نام کاربر (مثلاً <code>ali</code>) را ارسال کنید!`,
       getTelegramMainMenuKeyboard(),
       chatId
     );
     return;
   }
 
-  if (text.startsWith('info ') || text.startsWith('/sub_')) {
-    const query = text.replace('info ', '').replace('/sub_', '').trim().toLowerCase();
-    const users = getUsers();
-    const user = users.find(u => u.name.toLowerCase() === query || u.uuid.toLowerCase() === query || u.id === query);
+  // پردازش دستورات استعلام کاربر بر اساس شماره یا نام
+  let searchTarget = text.replace('/user_', '').replace('/sub_', '').replace('info ', '').trim();
+  const users = getUsers();
 
-    if (!user) {
-      sendTelegramMessage('❌ کاربر یافت نشد.', getTelegramMainMenuKeyboard(), chatId);
-      return;
+  let foundUser = null;
+  const numericIndex = parseInt(searchTarget);
+
+  if (!isNaN(numericIndex) && numericIndex > 0 && numericIndex <= users.length) {
+    foundUser = users[numericIndex - 1];
+  } else {
+    foundUser = users.find(u => u.name.toLowerCase() === searchTarget.toLowerCase() || u.uuid.toLowerCase() === searchTarget.toLowerCase() || u.id === searchTarget);
+  }
+
+  if (foundUser) {
+    const usedGB = (foundUser.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
+    const limitGB = foundUser.limitBytes > 0 ? (foundUser.limitBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : 'نامحدود';
+    
+    let expireText = 'نامحدود';
+    if (foundUser.expireDate) {
+      const diffDays = Math.ceil((new Date(foundUser.expireDate) - new Date()) / (1024 * 60 * 60 * 24));
+      expireText = diffDays > 0 ? `${diffDays} روز باقی‌مانده` : 'منقضی شده';
     }
 
-    const usedGB = (user.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
-    const limitGB = user.limitBytes > 0 ? (user.limitBytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB' : 'نامحدود';
-
     sendTelegramMessage(
-      `👤 **اطلاعات کاربر ${user.name}:**\n\n` +
-      `📊 **حجم مصرفی:** ${usedGB} / ${limitGB}\n` +
-      `⏳ **تاریخ انقضا:** ${user.expireDate || 'نامحدود'}\n` +
-      `🔑 **UUID:** \`${user.uuid}\`\n\n` +
-      `🔗 **لینک ساب:**\n\`/sub/${user.uuid}\``,
+      `👤 <b>اطلاعات کاربر ${foundUser.name}:</b>\n\n` +
+      `📊 <b>حجم مصرفی:</b> ${usedGB} / ${limitGB}\n` +
+      `⏳ <b>تاریخ انقضا:</b> ${expireText}\n` +
+      `🔑 <b>UUID:</b> <code>${foundUser.uuid}</code>\n\n` +
+      `🔗 <b>لینک سابسکریپشن:</b>\n<code>/sub/${foundUser.uuid}</code>`,
       getTelegramMainMenuKeyboard(),
       chatId
     );
@@ -613,14 +627,44 @@ app.post('/api/change-password', authMiddleware, (req, res) => {
   res.json({ success: true, message: 'تنظیمات «دیزاینو وی پی ان» با موفقیت به‌روزرسانی شد.' });
 });
 
-// دریافت لیست آی‌پی‌های تمیز پیشنهادی
-app.get('/api/clean-ips', (req, res) => {
+// API تنظیم و تست اتوماتیک ربات تلگرام
+app.post('/api/set-telegram-webhook', authMiddleware, (req, res) => {
+  const { token, adminId } = req.body;
   const settings = getSettings();
-  res.json({
-    success: true,
-    currentCleanIp: settings.cleanIp || '',
-    presetIps: PRESET_CLEAN_IPS
+
+  const botToken = (token || settings.telegramBotToken || '').trim();
+  const botAdminId = (adminId || settings.telegramAdminId || '').trim();
+
+  if (!botToken) {
+    return res.status(400).json({ success: false, message: 'لطفاً ابتدا توکن ربات تلگرام را وارد کنید.' });
+  }
+
+  settings.telegramBotToken = botToken;
+  if (botAdminId) settings.telegramAdminId = botAdminId;
+  saveSettings(settings);
+
+  // پاک کردن وب‌هوک قبلی جهت فعال‌سازی بی‌نقص پایش تلگرام و رفع مسدودی پورت
+  const deleteReq = https.request({
+    hostname: 'api.telegram.org',
+    path: `/bot${botToken}/deleteWebhook`,
+    method: 'GET'
+  }, (telegramRes) => {
+    let body = '';
+    telegramRes.on('data', chunk => body += chunk);
+    telegramRes.on('end', () => {
+      initTelegramBot();
+      return res.json({
+        success: true,
+        message: '✅ تنظیمات ربات تلگرام ذخیره شد و ارتباط ربات با موفقیت فعال گردید!\n\nاکنون می‌توانید در تلگرام به ربات خود پیام /start ارسال کنید.'
+      });
+    });
   });
+
+  deleteReq.on('error', () => {
+    initTelegramBot();
+    res.json({ success: true, message: 'تنظیمات ذخیره شد.' });
+  });
+  deleteReq.end();
 });
 
 // آمار کلی داشبورد
