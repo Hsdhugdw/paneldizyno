@@ -2,6 +2,7 @@
 
 یک پنل مدیریت اختصاصی، فوق‌العاده زیبا، سبک و پرسرعت برای سرورهای VPN با هسته قدرتمند **Sing-box**، طراحی‌شده بر پایه **VLESS (WebSocket & gRPC)** و **Trojan**، ویژه استقرار آسان و رایگان روی پلتفرم **Railway** و داکر (Docker).
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/MohammadMehdiArjmandManesh1386/railway-dizynopanel)
 ![Dizyno VPN Panel Banner](https://img.shields.io/badge/Dizyno_VPN-Panel_v1.0-6366f1?style=for-the-badge&logo=shield)
 ![Sing-box](https://img.shields.io/badge/Core-Sing--box_1.8+-38bdf8?style=for-the-badge&logo=linux)
 ![Docker Supported](https://img.shields.io/badge/Deployment-Railway_%2F_Docker-34d399?style=for-the-badge&logo=docker)
