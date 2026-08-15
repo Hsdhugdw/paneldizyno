@@ -405,6 +405,81 @@ async function resetUserTraffic(id) {
   }
 }
 
+function loadSettingsModal() {
+  document.getElementById('settingUsername').value = globalSettings.username || 'admin';
+  document.getElementById('settingPassword').value = '';
+  document.getElementById('settingEnableVlessWs').checked = globalSettings.enableVlessWs !== false;
+  document.getElementById('settingEnableVlessGrpc').checked = globalSettings.enableVlessGrpc !== false;
+  document.getElementById('settingEnableTrojanWs').checked = globalSettings.enableTrojanWs !== false;
+
+  const tok = globalSettings.telegramBotToken || '';
+  const adm = globalSettings.telegramAdminId || '';
+
+  if (document.getElementById('telegramTokenInput')) document.getElementById('telegramTokenInput').value = tok;
+  if (document.getElementById('telegramAdminIdInput')) document.getElementById('telegramAdminIdInput').value = adm;
+  if (document.getElementById('settingTelegramToken')) document.getElementById('settingTelegramToken').value = tok;
+  if (document.getElementById('settingTelegramAdminId')) document.getElementById('settingTelegramAdminId').value = adm;
+}
+
+// فعال‌سازی اتوماتیک و تست ربات تلگرام از فرانت‌اند
+async function triggerRailwaySetWebhook() {
+  const token = (document.getElementById('telegramTokenInput')?.value || '').trim();
+  const adminId = (document.getElementById('telegramAdminIdInput')?.value || '').trim();
+
+  if (!token) {
+    showToast('لطفاً ابتدا توکن ربات تلگرام را وارد کنید.', 'error');
+    alert('لطفاً ابتدا توکن ربات تلگرام را در کادر مربوطه وارد کنید.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/set-telegram-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, adminId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      alert(data.message);
+    } else {
+      showToast(data.message, 'error');
+      alert(data.message);
+    }
+  } catch (e) {
+    showToast('خطا در اتصال به ربات تلگرام.', 'error');
+  }
+}
+
+async function triggerRailwaySetWebhookFromSettings() {
+  const token = (document.getElementById('settingTelegramToken')?.value || '').trim();
+  const adminId = (document.getElementById('settingTelegramAdminId')?.value || '').trim();
+
+  if (!token) {
+    showToast('لطفاً ابتدا توکن ربات تلگرام را وارد کنید.', 'error');
+    alert('لطفاً ابتدا توکن ربات تلگرام را در کادر مربوطه وارد کنید.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/set-telegram-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, adminId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      alert(data.message);
+    } else {
+      showToast(data.message, 'error');
+      alert(data.message);
+    }
+  } catch (e) {
+    showToast('خطا در اتصال به ربات تلگرام.', 'error');
+  }
+}
+
 // حذف کاربر
 async function deleteUser(id, name) {
   if (!confirm(`آیا از حذف کاربر "${name}" اطمینان دارید؟`)) return;
@@ -434,35 +509,6 @@ function populateSettingsModal() {
   document.getElementById('telegramAdminIdInput').value = globalSettings.telegramAdminId || '';
 }
 
-// فعال‌سازی اتوماتیک و تست ربات تلگرام از فرانت‌اند
-async function triggerRailwaySetWebhook() {
-  const token = document.getElementById('telegramTokenInput').value.trim();
-  const adminId = document.getElementById('telegramAdminIdInput').value.trim();
-
-  if (!token) {
-    showToast('لطفاً ابتدا توکن ربات تلگرام را وارد کنید.', 'error');
-    alert('لطفاً ابتدا توکن ربات تلگرام را در کادر مربوطه وارد کنید.');
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/set-telegram-webhook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, adminId })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(data.message, 'success');
-      alert(data.message);
-    } else {
-      showToast(data.message, 'error');
-      alert(data.message);
-    }
-  } catch (e) {
-    showToast('خطا در اتصال به ربات تلگرام.', 'error');
-  }
-}
 
 // ذخیره تنظیمات عمومی پنل
 async function changeSettings() {
