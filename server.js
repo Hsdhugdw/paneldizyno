@@ -177,10 +177,11 @@ function rebuildSingboxConfig() {
   restartSingboxProcess();
 }
 
-// ---- سیستم ربات تلگرام تعاملی ----
+// ---- سیستم ربات تلگرام تعاملی و گرافیکی (Stateful Wizard) ----
 
 let lastTelegramUpdateId = 0;
 let telegramPollingTimeout = null;
+const botStateMap = {}; // ذخیره وضعیت مراحل ساخت و ویرایش کاربر در چت
 
 function sendTelegramMessage(text, replyMarkup = null, customChatId = null) {
   const settings = getSettings();
@@ -215,12 +216,36 @@ function sendTelegramMessage(text, replyMarkup = null, customChatId = null) {
   req.end();
 }
 
+function answerCallbackQuery(callbackQueryId, text = '') {
+  const settings = getSettings();
+  if (!settings.telegramBotToken) return;
+
+  const data = JSON.stringify({
+    callback_query_id: callbackQueryId,
+    text: text
+  });
+
+  const req = https.request({
+    hostname: 'api.telegram.org',
+    path: `/bot${settings.telegramBotToken}/answerCallbackQuery`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data)
+    }
+  }, (res) => {});
+
+  req.on('error', () => {});
+  req.write(data);
+  req.end();
+}
+
 // کیبورد منوی اصلی ربات تلگرام
 function getTelegramMainMenuKeyboard() {
   return {
     keyboard: [
-      [{ text: '📊 آمار سرور' }, { text: '👥 لیست کاربران' }],
-      [{ text: '➕ ساخت کاربر جدید' }, { text: '🔍 استعلام کاربر' }]
+      [{ text: '📊 آمار سرور' }, { text: '👥 مدیریت و لیست کاربران' }],
+      [{ text: '➕ ساخت کاربر جدید (ویزارد)' }, { text: '🔍 استعلام سریع' }]
     ],
     resize_keyboard: true,
     persistent: true
@@ -264,25 +289,289 @@ function initTelegramBot() {
   req.end();
 }
 
-// پردازش دستورات ورودی از ربات تلگرام با پشتیبانی از HTML و کدهای عددی
+// پردازش دستورات ورودی و اینلاین کیبوردهای تلگرام
 function handleTelegramUpdate(update) {
+  const settings = getSettings();
+
+  // ۱. پردازش کلیک روی دکمه‌های اینلاین (Callback Query)
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    const chatId = cb.message.chat.id;
+    const data = cb.data;
+
+    if (settings.telegramAdminId && chatId.toString() !== settings.telegramAdminId.toString()) {
+      answerCallbackQuery(cb.id, '⛔ دسترسی غیرمجاز.');
+      return;
+    }
+
+    answerCallbackQuery(cb.id);
+
+    // انتخاب حجم در ویزارد ساخت کاربر
+    if (data.startsWith('c_limit_')) {
+      const limitGB = parseFloat(data.replace('c_limit_', ''));
+      if (!botStateMap[chatId]) botStateMap[chatId] = {};
+      botStateMap[chatId].limitGB = limitGB;
+      botStateMap[chatId].step = 'await_days';
+
+      const daysMarkup = {
+        inline_keyboard: [
+          [{ text: '7 روز', callback_data: 'c_days_7' }, { text: '30 روز', callback_data: 'c_days_30' }],
+          [{ text: '60 روز', callback_data: 'c_days_60' }, { text: '90 روز', callback_data: 'c_days_90' }],
+          [{ text: '♾️ نامحدود', callback_data: 'c_days_0' }]
+        ]
+      };
+
+      sendTelegramMessage(
+        `⏳ <b>مرحله ۳ از ۳: تعیین مدت زمان اعتبار</b>\n\n` +
+        `نام: <b>${botStateMap[chatId].name}</b>\n` +
+        `حجم: <b>${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}</b>\n\n` +
+        `لطفاً مدت اعتبار را انتخاب کنید یا عدد تایپ نمایید:`,
+        daysMarkup,
+        chatId
+      );
+      return;
+    }
+
+    // انتخاب روز در ویزارد ساخت کاربر و تکمیل ثبت
+    if (data.startsWith('c_days_')) {
+      const expireDays = parseInt(data.replace('c_days_', ''));
+      const state = botStateMap[chatId] || {};
+      const name = state.name || 'کاربر جدید';
+      const limitGB = state.limitGB || 0;
+
+      delete botStateMap[chatId]; // پاکسازی وضعیت
+
+      const users = getUsers();
+      let expireDate = null;
+      if (expireDays > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + expireDays);
+        expireDate = d.toISOString().split('T')[0];
+      }
+
+      const newUser = {
+        id: uuidv4(),
+        name: name.trim(),
+        uuid: uuidv4(),
+        limitBytes: limitGB * 1024 * 1024 * 1024,
+        usedBytes: 0,
+        expireDate: expireDate,
+        status: 'active',
+        createdAt: new Date().toISOString()
+      };
+
+      users.push(newUser);
+      saveUsers(newUser);
+
+      const host = settings.cleanIp || 'سرور';
+      const subUrl = `http://${host}/sub/${newUser.uuid}`;
+
+      sendTelegramMessage(
+        `🎉 <b>کاربر با موفقیت ایجاد شد!</b>\n\n` +
+        `👤 <b>نام:</b> ${newUser.name}\n` +
+        `📊 <b>حجم:</b> ${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}\n` +
+        `⏳ <b>اعتبار:</b> ${expireDays > 0 ? expireDays + ' روز' : 'نامحدود'}\n\n` +
+        `🔑 <b>UUID:</b> <code>${newUser.uuid}</code>\n\n` +
+        `🔗 <b>لینک سابسکریپشن:</b>\n<code>${subUrl}</code>`,
+        getTelegramMainMenuKeyboard(),
+        chatId
+      );
+      return;
+    }
+
+    // مشاهده مشخصات و دکمه‌های کاربر انتخاب‌شده
+    if (data.startsWith('u_det_')) {
+      const userId = data.replace('u_det_', '');
+      sendUserManagementCard(userId, chatId);
+      return;
+    }
+
+    // دریافت مستقیم لینک ساب
+    if (data.startsWith('u_sub_')) {
+      const userId = data.replace('u_sub_', '');
+      const users = getUsers();
+      const user = users.find(u => u.id === userId || u.uuid === userId);
+      if (user) {
+        const subUrl = `http://${settings.cleanIp || 'سرور'}/sub/${user.uuid}`;
+        sendTelegramMessage(
+          `🔗 <b>لینک سابسکریپشن کاربر ${user.name}:</b>\n\n` +
+          `<code>${subUrl}</code>`,
+          null,
+          chatId
+        );
+      }
+      return;
+    }
+
+    // صفر کردن مصرف کاربر
+    if (data.startsWith('u_reset_')) {
+      const userId = data.replace('u_reset_', '');
+      const users = getUsers();
+      const user = users.find(u => u.id === userId || u.uuid === userId);
+      if (user) {
+        user.usedBytes = 0;
+        saveUsers(users);
+        sendTelegramMessage(`🔄 ترافیک مصرفی کاربر <b>${user.name}</b> صفر گردید.`, null, chatId);
+        sendUserManagementCard(user.id, chatId);
+      }
+      return;
+    }
+
+    // تغییر وضعیت فعال / غیرفعال
+    if (data.startsWith('u_toggle_')) {
+      const userId = data.replace('u_toggle_', '');
+      const users = getUsers();
+      const user = users.find(u => u.id === userId || u.uuid === userId);
+      if (user) {
+        user.status = user.status === 'active' ? 'disabled' : 'active';
+        saveUsers(users);
+        sendTelegramMessage(`وضعیت کاربر <b>${user.name}</b> به <b>${user.status === 'active' ? 'فعال' : 'غیرفعال'}</b> تغییر یافت.`, null, chatId);
+        sendUserManagementCard(user.id, chatId);
+      }
+      return;
+    }
+
+    // حذف کاربر
+    if (data.startsWith('u_del_')) {
+      const userId = data.replace('u_del_', '');
+      const users = getUsers();
+      const index = users.findIndex(u => u.id === userId || u.uuid === userId);
+      if (index !== -1) {
+        const userName = users[index].name;
+        users.splice(index, 1);
+        saveUsers(users);
+        sendTelegramMessage(`🗑️ کاربر <b>${userName}</b> با موفقیت حذف گردید.`, getTelegramMainMenuKeyboard(), chatId);
+      }
+      return;
+    }
+  }
+
+  // ۲. پردازش پیام‌های متنی و منوی اصلی
   if (!update.message || !update.message.text) return;
 
   const msg = update.message;
   const chatId = msg.chat.id;
   const text = msg.text.trim();
 
-  const settings = getSettings();
   if (settings.telegramAdminId && chatId.toString() !== settings.telegramAdminId.toString()) {
     sendTelegramMessage('⛔ دسترسی غیرمجاز. این ربات تنها برای مدیریت سرور تنظیم شده است.', null, chatId);
     return;
   }
 
+  // اگر کاربر در حال طی کردن مراحل ویزارد است
+  if (botStateMap[chatId]) {
+    const state = botStateMap[chatId];
+
+    if (state.step === 'await_name') {
+      state.name = text;
+      state.step = 'await_limit';
+
+      const limitMarkup = {
+        inline_keyboard: [
+          [{ text: '10 GB', callback_data: 'c_limit_10' }, { text: '30 GB', callback_data: 'c_limit_30' }],
+          [{ text: '50 GB', callback_data: 'c_limit_50' }, { text: '100 GB', callback_data: 'c_limit_100' }],
+          [{ text: '♾️ نامحدود', callback_data: 'c_limit_0' }]
+        ]
+      };
+
+      sendTelegramMessage(
+        `📊 <b>مرحله ۲ از ۳: تعیین حجم مجاز (GB)</b>\n\n` +
+        `نام کاربر: <b>${text}</b>\n\n` +
+        `لطفاً یکی از حجم‌های زیر را انتخاب کنید یا عدد تایپ کنید:`,
+        limitMarkup,
+        chatId
+      );
+      return;
+    }
+
+    if (state.step === 'await_limit') {
+      const limitGB = parseFloat(text) || 0;
+      state.limitGB = limitGB;
+      state.step = 'await_days';
+
+      const daysMarkup = {
+        inline_keyboard: [
+          [{ text: '7 روز', callback_data: 'c_days_7' }, { text: '30 روز', callback_data: 'c_days_30' }],
+          [{ text: '60 روز', callback_data: 'c_days_60' }, { text: '90 روز', callback_data: 'c_days_90' }],
+          [{ text: '♾️ نامحدود', callback_data: 'c_days_0' }]
+        ]
+      };
+
+      sendTelegramMessage(
+        `⏳ <b>مرحله ۳ از ۳: تعیین مدت زمان اعتبار (روز)</b>\n\n` +
+        `نام: <b>${state.name}</b> | حجم: <b>${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}</b>\n\n` +
+        `لطفاً مدت اعتبار را انتخاب کنید یا عدد تایپ نمایید:`,
+        daysMarkup,
+        chatId
+      );
+      return;
+    }
+
+    if (state.step === 'await_days') {
+      const expireDays = parseInt(text) || 0;
+      const name = state.name || 'کاربر جدید';
+      const limitGB = state.limitGB || 0;
+
+      delete botStateMap[chatId];
+
+      const users = getUsers();
+      let expireDate = null;
+      if (expireDays > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + expireDays);
+        expireDate = d.toISOString().split('T')[0];
+      }
+
+      const newUser = {
+        id: uuidv4(),
+        name: name.trim(),
+        uuid: uuidv4(),
+        limitBytes: limitGB * 1024 * 1024 * 1024,
+        usedBytes: 0,
+        expireDate: expireDate,
+        status: 'active',
+        createdAt: new Date().toISOString()
+      };
+
+      users.push(newUser);
+      saveUsers(users);
+
+      const host = settings.cleanIp || 'سرور';
+      const subUrl = `http://${host}/sub/${newUser.uuid}`;
+
+      sendTelegramMessage(
+        `🎉 <b>کاربر با موفقیت ایجاد شد!</b>\n\n` +
+        `👤 <b>نام:</b> ${newUser.name}\n` +
+        `📊 <b>حجم:</b> ${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}\n` +
+        `⏳ <b>اعتبار:</b> ${expireDays > 0 ? expireDays + ' روز' : 'نامحدود'}\n\n` +
+        `🔑 <b>UUID:</b> <code>${newUser.uuid}</code>\n\n` +
+        `🔗 <b>لینک سابسکریپشن:</b>\n<code>${subUrl}</code>`,
+        getTelegramMainMenuKeyboard(),
+        chatId
+      );
+      return;
+    }
+  }
+
   // دستور /start یا منو
   if (text === '/start' || text === 'منو' || text === 'menu') {
+    delete botStateMap[chatId];
     sendTelegramMessage(
       `⚡ <b>به ربات مدیریتی «دیزاینو وی پی ان» خوش آمدید!</b>\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:`,
       getTelegramMainMenuKeyboard(),
+      chatId
+    );
+    return;
+  }
+
+  // شروع ویزارد ساخت کاربر جدید
+  if (text === '➕ ساخت کاربر جدید (ویزارد)' || text === '/create') {
+    botStateMap[chatId] = { step: 'await_name' };
+    sendTelegramMessage(
+      `📝 <b>مرحله ۱ از ۳: نام کاربر</b>\n\n` +
+      `لطفاً نام کاربر جدید را تایپ و ارسال نمایید:\n` +
+      `(مثال: <code>ali_user</code>)`,
+      null,
       chatId
     );
     return;
@@ -312,139 +601,86 @@ function handleTelegramUpdate(update) {
     return;
   }
 
-  // لیست کاربران با شماره‌های عددی سریع /user_1, /user_2
-  if (text === '👥 لیست کاربران' || text === '/users') {
-    const users = getUsers();
-    if (users.length === 0) {
-      sendTelegramMessage('ℹ️ هیچ کاربری در پنل ثبت نشده است.', getTelegramMainMenuKeyboard(), chatId);
-      return;
-    }
-
-    let reply = `👥 <b>لیست کاربران پنل (${users.length} نفر):</b>\n\n`;
-    users.forEach((u, i) => {
-      const num = i + 1;
-      const usedGB = (u.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
-      const limitGB = u.limitBytes > 0 ? (u.limitBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : 'نامحدود';
-      let expireText = 'نامحدود';
-      if (u.expireDate) {
-        const diffDays = Math.ceil((new Date(u.expireDate) - new Date()) / (1024 * 60 * 60 * 24));
-        expireText = diffDays > 0 ? `${diffDays} روز باقي` : 'منقضی';
-      }
-      reply += `${num}. 👤 <b>${u.name}</b> | 📊 ${usedGB}/${limitGB} | ⏳ ${expireText}\n👉 دریافت لینک: /user_${num}\n\n`;
-    });
-
-    sendTelegramMessage(reply, getTelegramMainMenuKeyboard(), chatId);
+  // لیست گرافیکی کاربران همراه با دکمه‌های اینلاین برای هر کاربر
+  if (text === '👥 مدیریت و لیست کاربران' || text === '/users') {
+    sendUsersInlineList(chatId);
     return;
   }
 
-  // راهنمای ساخت کاربر
-  if (text === '➕ ساخت کاربر جدید' || text === '/create') {
-    sendTelegramMessage(
-      `➕ <b>راهنمای ساخت کاربر جدید:</b>\n\n` +
-      `لطفاً دستور ساخت را ارسال کنید:\n` +
-      `<code>create نام_کاربر حجم_GB روز_اعتبار</code>\n\n` +
-      `📌 <b>مثال ساخت کاربر با ۵۰ گیگ و ۳۰ روز:</b>\n` +
-      `<code>create ali 50 30</code>`,
-      getTelegramMainMenuKeyboard(),
-      chatId
-    );
+  // استعلام سریع
+  if (text === '🔍 استعلام سریع') {
+    sendUsersInlineList(chatId);
     return;
   }
+}
 
-  // ساخت کاربر مستقیم
-  if (text.startsWith('create ')) {
-    const parts = text.split(' ');
-    const name = parts[1];
-    const limitGB = parts[2] ? parseFloat(parts[2]) : 0;
-    const expireDays = parts[3] ? parseInt(parts[3]) : 0;
-
-    if (!name) {
-      sendTelegramMessage('❌ لطفاً نام کاربر را وارد کنید.', getTelegramMainMenuKeyboard(), chatId);
-      return;
-    }
-
-    const users = getUsers();
-    let expireDate = null;
-    if (expireDays > 0) {
-      const d = new Date();
-      d.setDate(d.getDate() + expireDays);
-      expireDate = d.toISOString().split('T')[0];
-    }
-
-    const newUser = {
-      id: uuidv4(),
-      name: name.trim(),
-      uuid: uuidv4(),
-      limitBytes: limitGB * 1024 * 1024 * 1024,
-      usedBytes: 0,
-      expireDate: expireDate,
-      status: 'active',
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    saveUsers(users);
-
-    const subUrl = `http://${settings.cleanIp || 'سرور'}/sub/${newUser.uuid}`;
-
-    sendTelegramMessage(
-      `✅ <b>کاربر با موفقیت ایجاد شد!</b>\n\n` +
-      `👤 <b>نام:</b> ${newUser.name}\n` +
-      `📊 <b>حجم:</b> ${limitGB > 0 ? limitGB + ' GB' : 'نامحدود'}\n` +
-      `⏳ <b>اعتبار:</b> ${expireDays > 0 ? expireDays + ' روز' : 'نامحدود'}\n\n` +
-      `🔑 <b>UUID:</b> <code>${newUser.uuid}</code>\n\n` +
-      `🔗 <b>لینک سابسکریپشن:</b>\n<code>${subUrl}</code>`,
-      getTelegramMainMenuKeyboard(),
-      chatId
-    );
-    return;
-  }
-
-  // استعلام کاربر بر اساس شماره (مثل /user_1 یا 1) یا نام یا UUID
-  if (text === '🔍 استعلام کاربر') {
-    sendTelegramMessage(
-      `🔍 <b>راهنمای استعلام کاربر:</b>\n\n` +
-      `کافیست شماره کاربر (مثلاً <code>1</code> یا <code>/user_1</code>) یا نام کاربر (مثلاً <code>ali</code>) را ارسال کنید!`,
-      getTelegramMainMenuKeyboard(),
-      chatId
-    );
-    return;
-  }
-
-  // پردازش دستورات استعلام کاربر بر اساس شماره یا نام
-  let searchTarget = text.replace('/user_', '').replace('/sub_', '').replace('info ', '').trim();
+// ارسال لیست اینلاین کاربران
+function sendUsersInlineList(chatId) {
   const users = getUsers();
-
-  let foundUser = null;
-  const numericIndex = parseInt(searchTarget);
-
-  if (!isNaN(numericIndex) && numericIndex > 0 && numericIndex <= users.length) {
-    foundUser = users[numericIndex - 1];
-  } else {
-    foundUser = users.find(u => u.name.toLowerCase() === searchTarget.toLowerCase() || u.uuid.toLowerCase() === searchTarget.toLowerCase() || u.id === searchTarget);
-  }
-
-  if (foundUser) {
-    const usedGB = (foundUser.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
-    const limitGB = foundUser.limitBytes > 0 ? (foundUser.limitBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : 'نامحدود';
-    
-    let expireText = 'نامحدود';
-    if (foundUser.expireDate) {
-      const diffDays = Math.ceil((new Date(foundUser.expireDate) - new Date()) / (1024 * 60 * 60 * 24));
-      expireText = diffDays > 0 ? `${diffDays} روز باقی‌مانده` : 'منقضی شده';
-    }
-
-    sendTelegramMessage(
-      `👤 <b>اطلاعات کاربر ${foundUser.name}:</b>\n\n` +
-      `📊 <b>حجم مصرفی:</b> ${usedGB} / ${limitGB}\n` +
-      `⏳ <b>تاریخ انقضا:</b> ${expireText}\n` +
-      `🔑 <b>UUID:</b> <code>${foundUser.uuid}</code>\n\n` +
-      `🔗 <b>لینک سابسکریپشن:</b>\n<code>/sub/${foundUser.uuid}</code>`,
-      getTelegramMainMenuKeyboard(),
-      chatId
-    );
+  if (users.length === 0) {
+    sendTelegramMessage('ℹ️ هیچ کاربری در پنل ثبت نشده است.', getTelegramMainMenuKeyboard(), chatId);
     return;
   }
+
+  const inlineKeyboard = [];
+  users.forEach((u) => {
+    const usedGB = (u.usedBytes / (1024 * 1024 * 1024)).toFixed(1);
+    const limitGB = u.limitBytes > 0 ? (u.limitBytes / (1024 * 1024 * 1024)).toFixed(0) + 'GB' : '♾️';
+    inlineKeyboard.push([{
+      text: `👤 ${u.name} | 📊 ${usedGB}/${limitGB}`,
+      callback_data: `u_det_${u.id}`
+    }]);
+  });
+
+  sendTelegramMessage(
+    `👥 <b>لیست کاربران پنل (${users.length} نفر):</b>\n\n` +
+    `برای مدیریت، ویرایش یا دریافت لینک ساب بر روی کاربر کلیک کنید:`,
+    { inline_keyboard: inlineKeyboard },
+    chatId
+  );
+}
+
+// ارسال کارت مدیریت کامل یک کاربر
+function sendUserManagementCard(userId, chatId) {
+  const users = getUsers();
+  const user = users.find(u => u.id === userId || u.uuid === userId);
+
+  if (!user) {
+    sendTelegramMessage('❌ کاربر یافت نشد.', getTelegramMainMenuKeyboard(), chatId);
+    return;
+  }
+
+  const settings = getSettings();
+  const usedGB = (user.usedBytes / (1024 * 1024 * 1024)).toFixed(2);
+  const limitGB = user.limitBytes > 0 ? (user.limitBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB' : 'نامحدود';
+
+  let expireText = 'نامحدود';
+  if (user.expireDate) {
+    const diffDays = Math.ceil((new Date(user.expireDate) - new Date()) / (1024 * 60 * 60 * 24));
+    expireText = diffDays > 0 ? `${diffDays} روز باقی‌مانده` : 'منقضی شده';
+  }
+
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [{ text: '🔗 کپی لینک ساب', callback_data: `u_sub_${user.id}` }],
+      [
+        { text: user.status === 'active' ? '🔴 غیرفعال‌سازی' : '🟢 فعال‌سازی', callback_data: `u_toggle_${user.id}` },
+        { text: '🔄 صفر کردن مصرف', callback_data: `u_reset_${user.id}` }
+      ],
+      [{ text: '🗑️ حذف کامل کاربر', callback_data: `u_del_${user.id}` }],
+      [{ text: '🔙 بازگشت به لیست کاربران', callback_data: 'c_days_back' }]
+    ]
+  };
+
+  sendTelegramMessage(
+    `👤 <b>پنل مدیریت کاربر: ${user.name}</b>\n\n` +
+    `وضعیت: <b>${user.status === 'active' ? '✅ فعال' : '🔴 غیرفعال'}</b>\n` +
+    `📊 <b>حجم مصرفی:</b> ${usedGB} / ${limitGB}\n` +
+    `⏳ <b>تاریخ انقضا:</b> ${expireText}\n` +
+    `🔑 <b>UUID:</b> <code>${user.uuid}</code>`,
+    inlineKeyboard,
+    chatId
+  );
 }
 
 function restartSingboxProcess() {
