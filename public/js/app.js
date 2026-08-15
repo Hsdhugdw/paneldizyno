@@ -243,9 +243,12 @@ function renderUsersTable() {
   if (filteredUsers.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-muted py-5">
-          <i class="fa-solid fa-folder-open display-6 d-block mb-2 opacity-50"></i>
-          هیچ کاربری یافت نشد. برای اضافه کردن کاربر روی دکمه "ایجاد کاربر جدید" کلیک کنید.
+        <td colspan="6" class="text-center py-5" style="background: var(--bg-card) !important;">
+          <div class="p-4 rounded-4 d-inline-block" style="background: rgba(56, 189, 248, 0.05); border: 1px dashed rgba(56, 189, 248, 0.25);">
+            <i class="fa-solid fa-folder-open fs-1 text-info d-block mb-3 opacity-75"></i>
+            <span class="fw-bold text-white fs-6">هیچ کاربری یافت نشد.</span>
+            <p class="text-slate-300 small mb-0 mt-1">برای اضافه کردن کاربر جدید روی دکمه "ایجاد کاربر جدید" کلیک کنید.</p>
+          </div>
         </td>
       </tr>
     `;
@@ -431,7 +434,37 @@ function populateSettingsModal() {
   document.getElementById('telegramAdminIdInput').value = globalSettings.telegramAdminId || '';
 }
 
-// ذخیره تنظیمات عمومی
+// فعال‌سازی اتوماتیک و تست ربات تلگرام از فرانت‌اند
+async function triggerRailwaySetWebhook() {
+  const token = document.getElementById('telegramTokenInput').value.trim();
+  const adminId = document.getElementById('telegramAdminIdInput').value.trim();
+
+  if (!token) {
+    showToast('لطفاً ابتدا توکن ربات تلگرام را وارد کنید.', 'error');
+    alert('لطفاً ابتدا توکن ربات تلگرام را در کادر مربوطه وارد کنید.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/set-telegram-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, adminId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      alert(data.message);
+    } else {
+      showToast(data.message, 'error');
+      alert(data.message);
+    }
+  } catch (e) {
+    showToast('خطا در اتصال به ربات تلگرام.', 'error');
+  }
+}
+
+// ذخیره تنظیمات عمومی پنل
 async function changeSettings() {
   const newUsername = document.getElementById('settingUsername').value;
   const newPassword = document.getElementById('settingPassword').value;
