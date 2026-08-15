@@ -265,6 +265,17 @@ function renderUsersTable() {
       statusBadge = `<span class="badge-status badge-expired"><i class="fa-solid fa-database me-1"></i> حجم تمام‌شده</span>`;
     }
 
+    let expireText = 'نامحدود';
+    if (u.expireDate) {
+      const diffDays = Math.ceil((new Date(u.expireDate) - new Date()) / (1024 * 60 * 60 * 24));
+      expireText = diffDays > 0 ? `${diffDays} روز باقی‌مانده` : 'منقضی شده';
+    }
+
+    let percent = 0;
+    if (u.limitBytes > 0) {
+      percent = Math.min(100, Math.round((u.usedBytes / u.limitBytes) * 100));
+    }
+
     const subUrl = `${protocol}//${host}/sub/${u.uuid}`;
 
     const tr = document.createElement('tr');
@@ -276,10 +287,12 @@ function renderUsersTable() {
       </td>
       <td>${statusBadge}</td>
       <td>
-        <div class="small text-slate-200 fw-bold">${usedGB} / ${limitGB}</div>
+        <div><strong class="text-info">${usedGB} GB</strong> / <span class="text-muted">${limitGB}</span></div>
+        ${u.limitBytes > 0 ? `<div class="progress mt-1" style="height: 6px;"><div class="progress-bar bg-info" style="width: ${percent}%"></div></div>` : ''}
       </td>
       <td>
-        <div class="small text-slate-300">${u.expireDate || 'نامحدود'}</div>
+        <div class="small fw-bold ${expireText === 'منقضی شده' ? 'text-danger' : 'text-warning'}">${expireText}</div>
+        ${u.expireDate ? `<div class="small text-muted" style="font-size: 0.75rem">تا ${u.expireDate}</div>` : ''}
       </td>
       <td>
         <div class="d-flex gap-1 justify-content-center">
