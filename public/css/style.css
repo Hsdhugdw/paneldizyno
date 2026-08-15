@@ -227,20 +227,41 @@ body {
   padding: 16px 24px;
 }
 
+/* جلوگیری از زرد شدن بک‌گراند Autofill مرورگر */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-main) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+label.form-label, .form-label {
+  color: var(--text-main) !important;
+  font-weight: 600 !important;
+  font-size: 0.88rem !important;
+  margin-bottom: 6px !important;
+}
+
 .form-control-dark {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-main) !important;
   border-radius: 14px;
   padding: 12px 16px;
   transition: all 0.2s;
 }
 
+.form-control-dark::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.85 !important;
+}
+
 .form-control-dark:focus {
-  background: var(--bg-input);
-  border-color: var(--accent-cyan);
-  color: var(--text-main);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+  background: var(--bg-input) !important;
+  border-color: var(--accent-cyan) !important;
+  color: var(--text-main) !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2) !important;
 }
 
 /* دکمه‌های آیکون‌دار */
